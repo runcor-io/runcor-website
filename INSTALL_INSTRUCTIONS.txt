@@ -1,0 +1,120 @@
+================================================================================
+                    RunCor - Installation Instructions
+================================================================================
+
+QUICK START (RECOMMENDED):
+---------------------------
+1. Double-click "START_HERE.bat"
+2. Wait for automatic setup to complete
+3. Open http://localhost:3000 in your browser
+
+That's it! The script handles everything automatically.
+
+================================================================================
+WHAT THE SCRIPTS DO:
+================================================================================
+
+START_HERE.bat (Main Setup Script)
+-----------------------------------
+- Checks if Node.js is installed
+- Automatically installs Node.js if missing (via winget or Chocolatey)
+- Installs all project dependencies
+- Starts the development server
+- Perfect for first-time setup on any PC
+
+run.bat (Quick Start)
+---------------------
+- Quick check for Node.js
+- Installs dependencies if needed
+- Starts the server
+- Use this after initial setup
+
+setup-and-run.bat (Alternative)
+--------------------------------
+- Same as START_HERE.bat but with different interface
+- Use if START_HERE.bat doesn't work
+
+================================================================================
+MANUAL INSTALLATION (If automatic fails):
+================================================================================
+
+Step 1: Install Node.js
+-----------------------
+1. Visit: https://nodejs.org/
+2. Download the LTS (Long Term Support) version
+3. Run the installer
+4. Use default settings (check "Add to PATH")
+5. Restart your computer
+
+Step 2: Verify Installation
+----------------------------
+1. Open Command Prompt
+2. Type: node --version
+3. Should show: v18.x.x or v20.x.x
+4. Type: npm --version
+5. Should show: 9.x.x or 10.x.x
+
+Step 3: Run the Project
+-----------------------
+1. Double-click START_HERE.bat
+2. Or open Command Prompt in this folder
+3. Type: npm install
+4. Type: npm run dev
+5. Open http://localhost:3000
+
+================================================================================
+TROUBLESHOOTING:
+================================================================================
+
+Problem: "Node.js is not recognized"
+Solution: 
+- Install Node.js from https://nodejs.org/
+- Restart your computer after installation
+- Make sure "Add to PATH" was checked during installation
+
+Problem: "npm install fails"
+Solution:
+- Check internet connection
+- Try running as Administrator
+- Delete "node_modules" folder and try again
+- Check if you have enough disk space
+
+Problem: "Port 3000 already in use"
+Solution:
+- Close other applications using port 3000
+- Or change port in package.json (dev script)
+
+Problem: "Script won't run"
+Solution:
+- Right-click the .bat file
+- Select "Run as administrator"
+- Or use PowerShell: Right-click → "Run with PowerShell"
+
+Problem: "Dependencies install but server won't start"
+Solution:
+- Delete ".next" folder
+- Run: npm run build
+- Then run: npm run dev
+
+================================================================================
+SYSTEM REQUIREMENTS:
+================================================================================
+
+- Windows 10 or later
+- Internet connection (for first-time setup)
+- At least 500MB free disk space
+- Administrator rights (for automatic Node.js installation)
+
+================================================================================
+SUPPORT:
+================================================================================
+
+If you encounter issues:
+1. Check the error message carefully
+2. Try the troubleshooting steps above
+3. Make sure Node.js is properly installed
+4. Try running commands manually in Command Prompt
+
+================================================================================
+
+
