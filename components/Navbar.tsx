@@ -20,6 +20,9 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
+          <Link href="/contractor" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
+            Contractor Portal
+          </Link>
           <Link href="/auth?mode=login" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
             Log In
           </Link>
