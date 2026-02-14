@@ -43,8 +43,8 @@ export default function TargetDevicesSection() {
           <h3 className="text-4xl font-bold mb-6">The backbone for the <br />autonomous machine
             economy.</h3>
           <div className="flex justify-center gap-4">
-            <Link href="/dashboard/onboarding" className="btn-pill h-12">
-              Get Early Access
+            <Link href="/contractor/create" className="btn-pill h-12">
+              Post Your First Job
             </Link>
           </div>
           <p className="text-gray-500 mt-6 text-sm">Runcor © 2026. All systems nominal.</p>

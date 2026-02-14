@@ -22,9 +22,9 @@ export default function HeroSection() {
           </p>
 
           <div className="flex justify-center gap-4 pt-4">
-            <Link href="/coming-soon" className="btn-pill-secondary h-14 px-8 text-lg">
+            <Link href="/contractor" className="btn-pill-secondary h-14 px-8 text-lg">
               <Terminal className="w-5 h-5" />
-              Read Documentation
+              Contractor Console
             </Link>
           </div>
         </div>
