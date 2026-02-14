@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Terminal,
   Cpu,
@@ -16,6 +17,7 @@ import {
   Server,
   FileCode,
   Monitor,
+  Rocket,
 } from "lucide-react";
 
 const platforms = [
@@ -46,6 +48,7 @@ const platforms = [
 ];
 
 export default function Onboarding() {
+  const router = useRouter();
   const [selectedPath, setSelectedPath] = useState<"software" | "hardware" | null>(null);
   const [step, setStep] = useState(1);
   const [copied, setCopied] = useState(false);
@@ -60,6 +63,10 @@ sudo mv runcor-agent-* /usr/local/bin/runcor-agent`;
     navigator.clipboard.writeText(cmd);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const goToInstall = () => {
+    router.push("/install");
   };
 
   return (
@@ -178,15 +185,47 @@ sudo mv runcor-agent-* /usr/local/bin/runcor-agent`;
       {/* Step 2: Installation */}
       {step === 2 && selectedPath === "software" && (
         <div className="space-y-6">
-          {/* Download Section */}
+          {/* Web Installer CTA */}
+          <div className="card p-8 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 flex items-center justify-center">
+                <Rocket className="w-8 h-8 text-cyan-400" />
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-xl font-bold mb-2">Web-Based Installer</h3>
+                <p className="text-gray-400">
+                  The easiest way to get started. We&apos;ll detect your system specs, 
+                  download the right agent, and register your device automatically.
+                </p>
+              </div>
+              <button
+                onClick={goToInstall}
+                className="btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none whitespace-nowrap"
+              >
+                <Download className="w-4 h-4" />
+                Start Installation
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-800" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="px-4 bg-black text-sm text-gray-500">Or manual installation</span>
+            </div>
+          </div>
+
+          {/* Manual Download Section */}
           <div className="card p-8 space-y-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <Download className="w-6 h-6 text-cyan-400" />
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+                <Terminal className="w-6 h-6 text-gray-400" />
               </div>
               <div>
-                <h3 className="font-bold text-lg">Download Software Agent</h3>
-                <p className="text-gray-500 text-sm">Choose your platform and installation method</p>
+                <h3 className="font-bold text-lg">Manual Installation</h3>
+                <p className="text-gray-500 text-sm">Download and install the agent yourself</p>
               </div>
             </div>
 
@@ -225,67 +264,21 @@ sudo mv runcor-agent-* /usr/local/bin/runcor-agent`;
               className="btn-pill w-full justify-center"
             >
               <Download className="w-4 h-4" />
-              Download for {platforms.find(p => p.id === selectedPlatform)?.name}
+              Download {platforms.find(p => p.id === selectedPlatform)?.name} Agent
             </a>
-          </div>
 
-          {/* Quick Install Section */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Terminal className="w-4 h-4 text-gray-400" />
-              <h3 className="font-medium">Quick Install (Recommended)</h3>
-            </div>
-            
-            <div className="bg-black border border-gray-800 rounded-lg p-4 font-mono text-sm relative group mb-4">
-              <code className="text-gray-300 block break-all">{installCommand}</code>
-              <button
-                onClick={() => copyCommand(installCommand)}
-                className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500">
-              This one-line installer detects your architecture, installs Docker (if needed), 
-              and sets up the agent as a systemd service.
-            </p>
-          </div>
-
-          {/* Manual Install Section */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FileCode className="w-4 h-4 text-gray-400" />
-              <h3 className="font-medium">Manual Installation</h3>
-            </div>
-            
-            <div className="bg-black border border-gray-800 rounded-lg p-4 font-mono text-sm relative group">
-              <pre className="text-gray-300 whitespace-pre-wrap">{manualCommand}</pre>
-              <button
-                onClick={() => copyCommand(manualCommand)}
-                className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-white/5 text-center">
-              <Shield className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Secure Sandbox</p>
-              <p className="text-xs text-gray-500">Docker containerization</p>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 text-center">
-              <Activity className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Auto-Discovery</p>
-              <p className="text-xs text-gray-500">Hardware detection</p>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 text-center">
-              <Monitor className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Multi-Arch</p>
-              <p className="text-xs text-gray-500">x86, ARM, RISC-V</p>
+            {/* Quick Install */}
+            <div className="p-4 rounded-lg bg-black border border-gray-800">
+              <p className="text-xs text-gray-500 mb-2">Quick Install Command:</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-sm text-gray-300 font-mono break-all">{installCommand}</code>
+                <button
+                  onClick={() => copyCommand(installCommand)}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>

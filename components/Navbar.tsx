@@ -20,7 +20,7 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link href="/auth" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
+          <Link href="/auth?mode=login" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
             Log In
           </Link>
           <Link href="/auth" className="btn-pill">
