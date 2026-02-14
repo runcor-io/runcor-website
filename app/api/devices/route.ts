@@ -101,3 +101,42 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE /api/devices - Delete a device
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const deviceId = searchParams.get("id");
+
+    if (!deviceId) {
+      return NextResponse.json(
+        { error: "deviceId is required" },
+        { status: 400 }
+      );
+    }
+
+    const devices = readDevices();
+
+    if (!devices[deviceId]) {
+      return NextResponse.json(
+        { error: "Device not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete the device
+    delete devices[deviceId];
+    writeDevices(devices);
+
+    return NextResponse.json({
+      success: true,
+      message: "Device deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting device:", error);
+    return NextResponse.json(
+      { error: "Failed to delete device" },
+      { status: 500 }
+    );
+  }
+}

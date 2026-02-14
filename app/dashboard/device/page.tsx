@@ -16,6 +16,7 @@ import {
   Box,
   RefreshCw,
   Monitor,
+  Trash2,
 } from "lucide-react";
 
 interface Device {
@@ -51,6 +52,7 @@ export default function DeviceControl() {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [showEstop, setShowEstop] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -94,6 +96,28 @@ export default function DeviceControl() {
     const mins = Math.floor((seconds % 3600) / 60);
     if (days > 0) return `${days}d ${hours}h ${mins}m`;
     return `${hours}h ${mins}m`;
+  };
+
+  const deleteDevice = async () => {
+    if (!selectedDevice) return;
+    
+    try {
+      const response = await fetch(`/api/devices?id=${encodeURIComponent(selectedDevice.deviceId)}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove device from list
+        setDevices(devices.filter(d => d.deviceId !== selectedDevice.deviceId));
+        setSelectedDevice(null);
+        setShowDelete(false);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete device');
+      }
+    } catch (err) {
+      alert('Failed to delete device. Please try again.');
+    }
   };
 
   const formatLastSeen = (isoString: string) => {
@@ -170,6 +194,15 @@ export default function DeviceControl() {
             <AlertOctagon className="w-4 h-4" />
             E-STOP
           </button>
+          {selectedDevice && (
+            <button
+              onClick={() => setShowDelete(true)}
+              className="px-4 py-2 rounded-full bg-gray-800 border border-gray-700 text-gray-400 font-medium text-sm hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/50 transition-all flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -411,6 +444,35 @@ export default function DeviceControl() {
                 className="flex-1 px-4 py-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-600 transition-all"
               >
                 CONFIRM STOP
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDelete && selectedDevice && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="card p-8 max-w-md w-full">
+            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-red-400" />
+            </div>
+            <h2 className="text-xl font-bold text-center mb-2">Delete Device</h2>
+            <p className="text-gray-400 text-center text-sm mb-6">
+              Are you sure you want to remove <strong>{selectedDevice.specs.cpu}</strong> from your fleet? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDelete(false)}
+                className="flex-1 btn-pill-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteDevice}
+                className="flex-1 px-4 py-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-600 transition-all"
+              >
+                DELETE DEVICE
               </button>
             </div>
           </div>
