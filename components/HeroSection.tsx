@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Terminal } from "lucide-react";
 
 export default function HeroSection() {
@@ -21,10 +22,10 @@ export default function HeroSection() {
           </p>
 
           <div className="flex justify-center gap-4 pt-4">
-            <button className="btn-pill-secondary h-14 px-8 text-lg">
+            <Link href="/coming-soon" className="btn-pill-secondary h-14 px-8 text-lg">
               <Terminal className="w-5 h-5" />
               Read Documentation
-            </button>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Server, Box, Check } from "lucide-react";
 
 export default function TwoPathsSection() {
@@ -35,7 +36,7 @@ export default function TwoPathsSection() {
               </ul>
             </div>
             <div className="pt-8">
-              <button className="btn-pill-secondary text-xs">Download Agent</button>
+              <Link href="/coming-soon" className="btn-pill-secondary text-xs">Download Agent</Link>
             </div>
           </div>
 
@@ -63,7 +64,7 @@ export default function TwoPathsSection() {
               </ul>
             </div>
             <div className="pt-8">
-              <button className="btn-pill-secondary text-xs">View Schematics</button>
+              <Link href="/coming-soon" className="btn-pill-secondary text-xs">View Schematics</Link>
             </div>
           </div>
         </div>
