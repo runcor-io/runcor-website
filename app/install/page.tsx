@@ -63,82 +63,13 @@ export default function InstallAgent() {
   };
 
   const downloadAgent = () => {
-    // Create a PowerShell script for Windows
-    const psScript = `@echo off
-echo ==========================================
-echo   RUNCOR AGENT INSTALLER
-echo ==========================================
-echo.
-echo Detecting system specs...
-echo.
-
-REM Get CPU Info
-for /f "tokens=2 delims==" %%a in ('wmic cpu get Name /value ^| find "="') do set CPU=%%a
-for /f "tokens=2 delims==" %%a in ('wmic cpu get NumberOfCores /value ^| find "="') do set CORES=%%a
-
-REM Get RAM Info
-for /f "tokens=2 delims==" %%a in ('wmic computersystem get TotalPhysicalMemory /value ^| find "="') do set RAM_BYTES=%%a
-set /a RAM_GB=%RAM_BYTES:~0,-9%
-
-REM Get OS Info
-for /f "tokens=2 delims==" %%a in ('wmic os get Caption /value ^| find "="') do set OS=%%a
-
-echo CPU: %CPU%
-echo Cores: %CORES%
-echo RAM: %RAM_GB% GB
-echo OS: %OS%
-echo.
-echo Device ID: ${deviceId}
-echo.
-echo Registering with RunCor...
-echo.
-
-REM Send to API
-powershell -Command "
-\$specs = @{ 
-    deviceId='${deviceId}'; 
-    username='${username || 'unknown'}'; 
-    specs=@{ 
-        architecture='amd64'; 
-        cpu='\$env:CPU'.Trim(); 
-        cpuCores=[int]'\$env:CORES'; 
-        ramGB=[int]'\$env:RAM_GB'; 
-        os='windows'; 
-        osVersion='\$env:OS'.Trim();
-        capabilities=@('cpu_compute', 'windows', 'browser_registered');
-        maxJobRAM='2gb'
-    }; 
-    status=@{ 
-        cpuLoadPercent=0; 
-        ramUsedPercent=0; 
-        jobStatus='idle'; 
-        uptimeSeconds=0 
-    }
-} | ConvertTo-Json -Depth 10 |
-Invoke-RestMethod -Uri 'http://localhost:3000/api/devices' -Method POST -ContentType 'application/json' -Body \$_
-"
-
-echo.
-echo ==========================================
-echo   REGISTRATION COMPLETE!
-echo ==========================================
-echo.
-echo Your device has been registered.
-echo View it at: http://localhost:3000/dashboard/device
-echo.
-pause
-`;
-
-    const blob = new Blob([psScript], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
+    // Download the actual PowerShell script from the server
     const a = document.createElement("a");
-    a.href = url;
-    a.download = "runcor-register.bat";
+    a.href = "/downloads/runcor-register.ps1";
+    a.download = "runcor-register.ps1";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
     setStep("register");
   };
 
@@ -301,34 +232,38 @@ pause
               <h2 className="text-xl font-bold mb-6">Download Software Agent</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Windows Download */}
+                {/* Windows PowerShell (Recommended) */}
                 <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                       <Server className="w-6 h-6 text-cyan-400" />
                     </div>
-                    <div>
-                      <h3 className="font-bold">Windows Installer</h3>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold">PowerShell Installer</h3>
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Recommended</span>
+                      </div>
                       <p className="text-sm text-gray-400">Full hardware detection</p>
                     </div>
                   </div>
 
                   <div className="bg-black rounded-lg p-3 font-mono text-xs mb-4 overflow-x-auto">
                     <code className="text-gray-300">
-                      curl -fsSL https://runcor.io/install.sh | bash
+                      irm https://runcor.io/downloads/runcor-register.ps1 | iex
                     </code>
                   </div>
 
-                  <button
-                    onClick={downloadAgent}
+                  <a
+                    href="/downloads/runcor-register.ps1"
+                    download
                     className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
                   >
                     <Download className="w-4 h-4" />
-                    Download for Windows
-                  </button>
+                    Download PowerShell Script
+                  </a>
 
                   <p className="text-xs text-gray-500 mt-3">
-                    Or run the one-liner in PowerShell
+                    Or run the one-liner in PowerShell as Administrator
                   </p>
                 </div>
 
@@ -398,18 +333,26 @@ pause
                 </div>
                 <h2 className="text-2xl font-bold mb-4">Download Complete!</h2>
                 <p className="text-gray-400 mb-8 max-w-md mx-auto">
-                  The installer has been downloaded. Run the <code className="text-cyan-400">runcor-register.bat</code> file 
-                  to complete registration and send your specs to the dashboard.
+                  The PowerShell script has been downloaded. Run it to detect your HP Omen specs 
+                  and automatically register with the dashboard.
                 </p>
 
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 mb-8 text-left max-w-lg mx-auto">
-                  <h3 className="font-medium mb-3">Next steps:</h3>
+                  <h3 className="font-medium mb-3">How to run:</h3>
                   <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
-                    <li>Open your Downloads folder</li>
-                    <li>Double-click <strong>runcor-register.bat</strong></li>
-                    <li>Wait for the script to detect your hardware</li>
-                    <li>Your device will appear in the dashboard automatically!</li>
+                    <li>Press <kbd className="px-2 py-1 bg-white/10 rounded">Win + X</kbd> and select <strong>Terminal (Admin)</strong></li>
+                    <li>Navigate to Downloads: <code className="text-cyan-400">cd ~/Downloads</code></li>
+                    <li>Run: <code className="text-cyan-400">.\runcor-register.ps1</code></li>
+                    <li>Enter your username when prompted</li>
+                    <li>Your HP Omen specs will appear in the dashboard!</li>
                   </ol>
+                  
+                  <div className="mt-4 p-3 rounded bg-amber-500/10 border border-amber-500/30">
+                    <p className="text-xs text-amber-400">
+                      <strong>One-liner:</strong> Copy-paste this in PowerShell as Admin:<br/>
+                      <code className="break-all">irm http://localhost:3000/downloads/runcor-register.ps1 | iex</code>
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex gap-4 justify-center">
@@ -425,7 +368,7 @@ pause
                     disabled={loading}
                     className="btn-pill-secondary"
                   >
-                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Simulate Registration"}
+                    {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Test with Browser Data"}
                   </button>
                 </div>
               </>
