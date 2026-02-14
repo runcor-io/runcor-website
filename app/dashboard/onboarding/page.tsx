@@ -13,17 +13,51 @@ import {
   Shield,
   Thermometer,
   Activity,
+  Linux,
+  Server,
+  FileCode,
 } from "lucide-react";
 
-const installCommand = "curl -fsSL https://runcor.io/install.sh | bash -s -- --api-key YOUR_API_KEY";
+const platforms = [
+  {
+    id: "linux-amd64",
+    name: "Linux x86_64",
+    icon: Server,
+    description: "Intel/AMD servers and desktops",
+    filename: "runcor-agent-linux-amd64",
+    size: "~15 MB",
+  },
+  {
+    id: "linux-riscv64",
+    name: "Linux RISC-V",
+    icon: Cpu,
+    description: "Milk-V, StarFive boards",
+    filename: "runcor-agent-linux-riscv64",
+    size: "~18 MB",
+  },
+  {
+    id: "linux-arm64",
+    name: "Linux ARM64",
+    icon: Server,
+    description: "Raspberry Pi, ARM servers",
+    filename: "runcor-agent-linux-arm64",
+    size: "~15 MB",
+  },
+];
 
 export default function Onboarding() {
   const [selectedPath, setSelectedPath] = useState<"software" | "hardware" | null>(null);
   const [step, setStep] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState("linux-amd64");
 
-  const copyCommand = () => {
-    navigator.clipboard.writeText(installCommand);
+  const installCommand = "curl -fsSL https://runcor.io/install.sh | bash";
+  const manualCommand = `wget https://runcor.io/downloads/${platforms.find(p => p.id === selectedPlatform)?.filename}
+chmod +x runcor-agent-*
+sudo mv runcor-agent-* /usr/local/bin/runcor-agent`;
+
+  const copyCommand = (cmd: string) => {
+    navigator.clipboard.writeText(cmd);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -143,42 +177,115 @@ export default function Onboarding() {
 
       {/* Step 2: Installation */}
       {step === 2 && selectedPath === "software" && (
-        <div className="card p-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-              <Terminal className="w-6 h-6 text-cyan-400" />
+        <div className="space-y-6">
+          {/* Download Section */}
+          <div className="card p-8 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <Download className="w-6 h-6 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">Download Software Agent</h3>
+                <p className="text-gray-500 text-sm">Choose your platform and installation method</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-lg">Install Agent</h3>
-              <p className="text-gray-500 text-sm">Run this command on your target device</p>
-            </div>
-          </div>
 
-          <div className="bg-black border border-gray-800 rounded-lg p-4 font-mono text-sm relative group">
-            <code className="text-gray-300 block break-all">{installCommand}</code>
-            <button
-              onClick={copyCommand}
-              className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            {/* Platform Selector */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {platforms.map((platform) => {
+                const Icon = platform.icon;
+                return (
+                  <button
+                    key={platform.id}
+                    onClick={() => setSelectedPlatform(platform.id)}
+                    className={`p-4 rounded-xl border text-left transition-all ${
+                      selectedPlatform === platform.id
+                        ? "border-cyan-500/50 bg-cyan-500/10"
+                        : "border-gray-800 bg-white/5 hover:border-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <Icon className="w-5 h-5 text-cyan-400" />
+                      {selectedPlatform === platform.id && (
+                        <Check className="w-4 h-4 text-cyan-400" />
+                      )}
+                    </div>
+                    <p className="font-medium text-sm">{platform.name}</p>
+                    <p className="text-xs text-gray-500">{platform.description}</p>
+                    <p className="text-xs text-gray-600 mt-1">{platform.size}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Download Button */}
+            <a
+              href={`/downloads/${platforms.find(p => p.id === selectedPlatform)?.filename}`}
+              download
+              className="btn-pill w-full justify-center"
             >
-              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-            </button>
+              <Download className="w-4 h-4" />
+              Download for {platforms.find(p => p.id === selectedPlatform)?.name}
+            </a>
           </div>
 
+          {/* Quick Install Section */}
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Terminal className="w-4 h-4 text-gray-400" />
+              <h3 className="font-medium">Quick Install (Recommended)</h3>
+            </div>
+            
+            <div className="bg-black border border-gray-800 rounded-lg p-4 font-mono text-sm relative group mb-4">
+              <code className="text-gray-300 block break-all">{installCommand}</code>
+              <button
+                onClick={() => copyCommand(installCommand)}
+                className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              This one-line installer detects your architecture, installs Docker (if needed), 
+              and sets up the agent as a systemd service.
+            </p>
+          </div>
+
+          {/* Manual Install Section */}
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileCode className="w-4 h-4 text-gray-400" />
+              <h3 className="font-medium">Manual Installation</h3>
+            </div>
+            
+            <div className="bg-black border border-gray-800 rounded-lg p-4 font-mono text-sm relative group">
+              <pre className="text-gray-300 whitespace-pre-wrap">{manualCommand}</pre>
+              <button
+                onClick={() => copyCommand(manualCommand)}
+                className="absolute top-3 right-3 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-white/5 text-center">
-              <Download className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Download</p>
-              <p className="text-xs text-gray-500">~15MB binary</p>
-            </div>
-            <div className="p-4 rounded-lg bg-white/5 text-center">
               <Shield className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Sandbox</p>
-              <p className="text-xs text-gray-500">Containerized</p>
+              <p className="text-sm font-medium">Secure Sandbox</p>
+              <p className="text-xs text-gray-500">Docker containerization</p>
             </div>
             <div className="p-4 rounded-lg bg-white/5 text-center">
               <Activity className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium">Connect</p>
-              <p className="text-xs text-gray-500">Auto-discovery</p>
+              <p className="text-sm font-medium">Auto-Discovery</p>
+              <p className="text-xs text-gray-500">Hardware detection</p>
+            </div>
+            <div className="p-4 rounded-lg bg-white/5 text-center">
+              <Linux className="w-5 h-5 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm font-medium">Multi-Arch</p>
+              <p className="text-xs text-gray-500">x86, ARM, RISC-V</p>
             </div>
           </div>
         </div>

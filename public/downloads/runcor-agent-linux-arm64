@@ -1,0 +1,39 @@
+#!/bin/bash
+# PLACEHOLDER BINARY
+# 
+# This is a placeholder file. The actual binary should be built from source
+# or downloaded from GitHub releases.
+#
+# To build from source on Raspberry Pi or ARM servers:
+#   git clone https://github.com/runcor/runcor-agent.git
+#   cd runcor-agent
+#   GOARCH=arm64 go build -o runcor-agent ./cmd/agent
+#
+# Or use the installer:
+#   curl -fsSL https://runcor.io/install.sh | bash
+#
+
+set -e
+
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  RUNCOR AGENT - PLACEHOLDER BINARY                         ║"
+echo "╠════════════════════════════════════════════════════════════╣"
+echo "║  This is a placeholder file.                               ║"
+echo "║                                                            ║"
+echo "║  To install the RunCor Agent on ARM64:                     ║"
+echo "║                                                            ║"
+echo "║  Option 1: Use the installer (recommended)                 ║"
+echo "║    curl -fsSL https://runcor.io/install.sh | bash          ║"
+echo "║                                                            ║"
+echo "║  Option 2: Build from source                               ║"
+echo "║    git clone https://github.com/runcor/runcor-agent.git    ║"
+echo "║    cd runcor-agent                                         ║"
+echo "║    GOARCH=arm64 go build -o runcor-agent ./cmd/agent       ║"
+echo "║                                                            ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Platform: Linux ARM64 (aarch64)"
+echo "Optimized for: Raspberry Pi 4/5, AWS Graviton, ARM servers"
+echo ""
+
+exit 1

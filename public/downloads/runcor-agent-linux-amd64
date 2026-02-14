@@ -1,0 +1,38 @@
+#!/bin/bash
+# PLACEHOLDER BINARY
+# 
+# This is a placeholder file. The actual binary should be built from source
+# or downloaded from GitHub releases.
+#
+# To build from source:
+#   git clone https://github.com/runcor/runcor-agent.git
+#   cd runcor-agent
+#   go build -o runcor-agent ./cmd/agent
+#
+# Or use the installer:
+#   curl -fsSL https://runcor.io/install.sh | bash
+#
+
+set -e
+
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  RUNCOR AGENT - PLACEHOLDER BINARY                         ║"
+echo "╠════════════════════════════════════════════════════════════╣"
+echo "║  This is a placeholder file.                               ║"
+echo "║                                                            ║"
+echo "║  To install the RunCor Agent:                              ║"
+echo "║                                                            ║"
+echo "║  Option 1: Use the installer (recommended)                 ║"
+echo "║    curl -fsSL https://runcor.io/install.sh | bash          ║"
+echo "║                                                            ║"
+echo "║  Option 2: Build from source                               ║"
+echo "║    git clone https://github.com/runcor/runcor-agent.git    ║"
+echo "║    cd runcor-agent                                         ║"
+echo "║    go build -o runcor-agent ./cmd/agent                    ║"
+echo "║                                                            ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Platform: Linux x86_64 (amd64)"
+echo ""
+
+exit 1
