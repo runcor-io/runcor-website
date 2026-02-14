@@ -13,9 +13,9 @@ import {
   Shield,
   Thermometer,
   Activity,
-  Linux,
   Server,
   FileCode,
+  Monitor,
 } from "lucide-react";
 
 const platforms = [
@@ -283,7 +283,7 @@ sudo mv runcor-agent-* /usr/local/bin/runcor-agent`;
               <p className="text-xs text-gray-500">Hardware detection</p>
             </div>
             <div className="p-4 rounded-lg bg-white/5 text-center">
-              <Linux className="w-5 h-5 text-gray-400 mx-auto mb-2" />
+              <Monitor className="w-5 h-5 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium">Multi-Arch</p>
               <p className="text-xs text-gray-500">x86, ARM, RISC-V</p>
             </div>
