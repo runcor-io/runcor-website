@@ -20,10 +20,10 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link href="/coming-soon" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
+          <Link href="/dashboard" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
             Log In
           </Link>
-          <Link href="/coming-soon" className="btn-pill">
+          <Link href="/dashboard/onboarding" className="btn-pill">
             Get Started
           </Link>
         </div>

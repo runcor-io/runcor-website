@@ -43,7 +43,7 @@ export default function TargetDevicesSection() {
           <h3 className="text-4xl font-bold mb-6">The backbone for the <br />autonomous machine
             economy.</h3>
           <div className="flex justify-center gap-4">
-            <Link href="/coming-soon" className="btn-pill h-12">
+            <Link href="/dashboard/onboarding" className="btn-pill h-12">
               Get Early Access
             </Link>
           </div>
