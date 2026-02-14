@@ -232,68 +232,98 @@ export default function InstallAgent() {
               <h2 className="text-xl font-bold mb-6">Download Software Agent</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Windows PowerShell (Recommended) */}
-                <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                {/* Windows GUI Application (Recommended) */}
+                <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30 md:col-span-2">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                      <Server className="w-6 h-6 text-cyan-400" />
+                      <Monitor className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold">PowerShell Installer</h3>
+                        <h3 className="font-bold">RunCor Agent GUI</h3>
                         <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Recommended</span>
                       </div>
-                      <p className="text-sm text-gray-400">Full hardware detection</p>
+                      <p className="text-sm text-gray-400">Professional desktop app for HP Omen & Windows PCs</p>
                     </div>
                   </div>
 
-                  <div className="bg-black rounded-lg p-3 font-mono text-xs mb-4 overflow-x-auto">
-                    <code className="text-gray-300">
-                      irm https://runcor.io/downloads/runcor-register.ps1 | iex
-                    </code>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>Automatic hardware detection</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>Beautiful dark theme UI</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>One-click registration</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>Username login built-in</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>No command line needed</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Check className="w-4 h-4 text-green-400" />
+                        <span>Works on Windows 10/11</span>
+                      </div>
+                    </div>
                   </div>
 
                   <a
-                    href="/downloads/runcor-register.ps1"
+                    href="/downloads/RunCor-Agent-GUI.exe"
                     download
                     className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
                   >
                     <Download className="w-4 h-4" />
-                    Download PowerShell Script
+                    Download RunCor Agent GUI (.exe)
                   </a>
 
-                  <p className="text-xs text-gray-500 mt-3">
-                    Or run the one-liner in PowerShell as Administrator
-                  </p>
+                  <div className="mt-4 p-3 rounded bg-black/50 border border-white/10">
+                    <p className="text-xs text-gray-400">
+                      <strong className="text-white">How to use:</strong><br/>
+                      1. Download and double-click the .exe file<br/>
+                      2. Click "Scan My Computer" to detect your HP Omen specs<br/>
+                      3. Enter your username and click "Register Device"<br/>
+                      4. Your device appears automatically in the dashboard!
+                    </p>
+                  </div>
                 </div>
 
-                {/* Manual Setup */}
+                {/* Python Script (Advanced) */}
                 <div className="p-6 rounded-xl bg-white/5 border border-white/10">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
                       <Terminal className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold">Manual Setup</h3>
-                      <p className="text-sm text-gray-400">Build from source</p>
+                      <h3 className="font-bold">Python Script</h3>
+                      <p className="text-sm text-gray-400">For developers / advanced users</p>
                     </div>
                   </div>
 
                   <ol className="text-sm text-gray-400 space-y-2 mb-4 list-decimal list-inside">
-                    <li>Install Go 1.21+</li>
-                    <li>Clone: <code className="text-cyan-400">git clone https://github.com/runcor/runcor-agent</code></li>
-                    <li>Build: <code className="text-cyan-400">go build ./cmd/agent</code></li>
-                    <li>Run: <code className="text-cyan-400">./agent --register</code></li>
+                    <li>Install Python 3.8+</li>
+                    <li>Install: <code className="text-cyan-400">pip install WMI pywin32</code></li>
+                    <li>Download the Python script</li>
+                    <li>Run: <code className="text-cyan-400">python runcor_agent_gui.py</code></li>
                   </ol>
 
                   <a
-                    href="https://github.com/runcor/runcor-agent"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="/downloads/runcor_agent_gui.py"
+                    download
                     className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                   >
-                    View on GitHub
-                    <Globe className="w-3 h-3" />
+                    Download Python Script
+                    <Download className="w-3 h-3" />
                   </a>
                 </div>
               </div>
