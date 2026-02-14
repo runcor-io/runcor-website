@@ -232,93 +232,84 @@ export default function InstallAgent() {
               <h2 className="text-xl font-bold mb-6">Download Software Agent</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Windows GUI Application (Recommended) */}
-                <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30 md:col-span-2">
+                {/* Option 1: Easy Installer (Python Required) */}
+                <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                      <Monitor className="w-6 h-6 text-cyan-400" />
+                      <Terminal className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold">RunCor Agent GUI</h3>
+                        <h3 className="font-bold">Easy Installer</h3>
                         <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Recommended</span>
                       </div>
-                      <p className="text-sm text-gray-400">Professional desktop app for HP Omen & Windows PCs</p>
+                      <p className="text-sm text-gray-400">Quick setup for HP Omen & Windows PCs</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>Automatic hardware detection</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>Beautiful dark theme UI</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>One-click registration</span>
-                      </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>One-click download & run</span>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>Username login built-in</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>No command line needed</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Check className="w-4 h-4 text-green-400" />
-                        <span>Works on Windows 10/11</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>Auto-detects hardware specs</span>
                     </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>Built-in username login</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-amber-400">
+                      <strong>Requires:</strong> Python 3.8+ (most Windows 10/11 PCs have it)
+                    </p>
                   </div>
 
                   <a
-                    href="/downloads/RunCor-Agent-GUI.exe"
+                    href="/downloads/install-runcor.bat"
                     download
                     className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
                   >
                     <Download className="w-4 h-4" />
-                    Download RunCor Agent GUI (.exe)
+                    Download Installer (.bat)
                   </a>
 
-                  <div className="mt-4 p-3 rounded bg-black/50 border border-white/10">
-                    <p className="text-xs text-gray-400">
-                      <strong className="text-white">How to use:</strong><br/>
-                      1. Download and double-click the .exe file<br/>
-                      2. Click "Scan My Computer" to detect your HP Omen specs<br/>
-                      3. Enter your username and click "Register Device"<br/>
-                      4. Your device appears automatically in the dashboard!
-                    </p>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Double-click to run. Downloads and runs the agent automatically.
+                  </p>
                 </div>
 
-                {/* Python Script (Advanced) */}
+                {/* Option 2: Standalone Python Script */}
                 <div className="p-6 rounded-xl bg-white/5 border border-white/10">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                      <Terminal className="w-6 h-6 text-gray-400" />
+                      <Server className="w-6 h-6 text-gray-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold">Python Script</h3>
-                      <p className="text-sm text-gray-400">For developers / advanced users</p>
+                      <h3 className="font-bold">Standalone Python</h3>
+                      <p className="text-sm text-gray-400">No dependencies, works anywhere</p>
                     </div>
                   </div>
 
                   <ol className="text-sm text-gray-400 space-y-2 mb-4 list-decimal list-inside">
-                    <li>Install Python 3.8+</li>
-                    <li>Install: <code className="text-cyan-400">pip install WMI pywin32</code></li>
                     <li>Download the Python script</li>
-                    <li>Run: <code className="text-cyan-400">python runcor_agent_gui.py</code></li>
+                    <li>Open Command Prompt or Terminal</li>
+                    <li>Navigate to Downloads folder</li>
+                    <li>Run: <code className="text-cyan-400">python runcor-agent-windows.py</code></li>
                   </ol>
 
+                  <div className="bg-black rounded-lg p-3 font-mono text-xs mb-4">
+                    <code className="text-gray-300">
+                      cd Downloads<br/>
+                      python runcor-agent-windows.py
+                    </code>
+                  </div>
+
                   <a
-                    href="/downloads/runcor_agent_gui.py"
+                    href="/downloads/runcor-agent-windows.py"
                     download
                     className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                   >
@@ -368,21 +359,25 @@ export default function InstallAgent() {
                 </p>
 
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 mb-8 text-left max-w-lg mx-auto">
-                  <h3 className="font-medium mb-3">How to run:</h3>
-                  <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
-                    <li>Press <kbd className="px-2 py-1 bg-white/10 rounded">Win + X</kbd> and select <strong>Terminal (Admin)</strong></li>
-                    <li>Navigate to Downloads: <code className="text-cyan-400">cd ~/Downloads</code></li>
-                    <li>Run: <code className="text-cyan-400">.\runcor-register.ps1</code></li>
-                    <li>Enter your username when prompted</li>
+                  <h3 className="font-medium mb-3">Next steps:</h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    <strong>Option A (Easiest):</strong> Run the .bat file
+                  </p>
+                  <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside mb-4">
+                    <li>Open your Downloads folder</li>
+                    <li>Double-click <strong>install-runcor.bat</strong></li>
+                    <li>Follow the prompts to enter your username</li>
                     <li>Your HP Omen specs will appear in the dashboard!</li>
                   </ol>
                   
-                  <div className="mt-4 p-3 rounded bg-amber-500/10 border border-amber-500/30">
-                    <p className="text-xs text-amber-400">
-                      <strong>One-liner:</strong> Copy-paste this in PowerShell as Admin:<br/>
-                      <code className="break-all">irm http://localhost:3000/downloads/runcor-register.ps1 | iex</code>
-                    </p>
-                  </div>
+                  <p className="text-sm text-gray-400 mb-3">
+                    <strong>Option B:</strong> Run Python directly
+                  </p>
+                  <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
+                    <li>Open Command Prompt</li>
+                    <li><code className="text-cyan-400">cd Downloads</code></li>
+                    <li><code className="text-cyan-400">python runcor-agent-windows.py</code></li>
+                  </ol>
                 </div>
 
                 <div className="flex gap-4 justify-center">
