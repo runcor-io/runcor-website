@@ -1,59 +1,43 @@
-# Dependencies
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
 /.pnp
 .pnp.js
-.yarn/install-state.gz
 
-# Testing
+# testing
 /coverage
-*.log
 
-# Next.js
+# next.js
 /.next/
 /out/
-next-env.d.ts
 
-# Production
+# production
 /build
-/dist
 
-# Misc
+# misc
 .DS_Store
 *.pem
-Thumbs.db
-ehthumbs.db
-Desktop.ini
 
-# Debug
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# Local env files
-.env
+# local env files
 .env*.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-# Vercel
+# vercel
 .vercel
 
-# TypeScript
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# data directory (device registrations)
+/data/
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
+# agent binaries in public (we build these separately)
+/public/downloads/*.exe
+/public/downloads/runcor-agent-*
+!/public/downloads/install.sh

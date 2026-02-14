@@ -20,11 +20,11 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link href="/contractor" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
+          <Link href="/auth" className="text-sm font-medium hover:text-white transition-colors text-gray-400">
             Log In
           </Link>
-          <Link href="/contractor/create" className="btn-pill">
-            Post a Job
+          <Link href="/auth" className="btn-pill">
+            Get Started
           </Link>
         </div>
       </div>

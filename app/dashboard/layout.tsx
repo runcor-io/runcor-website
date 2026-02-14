@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Cpu,
@@ -12,6 +13,7 @@ import {
   Zap,
   Radio,
   LogOut,
+  User,
 } from "lucide-react";
 
 const navItems = [
@@ -30,6 +32,36 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [username, setUsername] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const currentUser = localStorage.getItem("runcor_current_user");
+    if (!currentUser) {
+      router.push("/auth");
+    } else {
+      setUsername(currentUser);
+      setIsLoading(false);
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("runcor_current_user");
+    router.push("/auth");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -73,19 +105,25 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Bottom Actions */}
-        <div className="p-4 border-t border-white/10 space-y-2">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all">
-            <Settings className="w-4 h-4" />
-            Settings
-          </button>
-          <Link
-            href="/"
+        {/* User Section */}
+        <div className="p-4 border-t border-white/10">
+          <div className="flex items-center gap-3 px-4 py-3 mb-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-xs font-bold">
+              {username.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{username}</p>
+              <p className="text-xs text-gray-500">Online</p>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-all"
           >
             <LogOut className="w-4 h-4" />
-            Exit Console
-          </Link>
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -104,9 +142,6 @@ export default function DashboardLayout({
             <div className="text-right">
               <p className="text-xs text-gray-500 font-mono">NETWORK EARNINGS</p>
               <p className="text-sm font-mono text-cyan-400">+2.847 ETH</p>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-xs font-bold">
-              OP
             </div>
           </div>
         </header>
