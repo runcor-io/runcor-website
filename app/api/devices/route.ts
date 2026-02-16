@@ -19,19 +19,10 @@ async function getDb() {
 // GET /api/devices - Get all devices or filter by username/deviceId
 export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user from token
-    const token = await getToken({ 
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-    
-    if (!token?.username) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const deviceId = searchParams.get("id");
     const mode = searchParams.get("mode"); // "all" or "mine"
+    const usernameParam = searchParams.get("username"); // For agent compatibility
 
     const db = await getDb();
     const devices = db.collection("devices");
@@ -53,14 +44,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(allDevices);
     }
 
-    // Default: filter by authenticated user's username (for device owners)
-    const authenticatedUsername = (token.username as string).toLowerCase();
-    console.log("[API] Fetching devices for authenticated user:", authenticatedUsername);
-    const userDevices = await devices.find({ 
-      username: { $regex: new RegExp(`^${authenticatedUsername}$`, 'i') }
-    }).toArray();
-    console.log("[API] Found devices:", userDevices.length);
-    return NextResponse.json(userDevices);
+    // If username provided (agent compatibility), use it
+    if (usernameParam) {
+      console.log("[API] Fetching devices for username (agent):", usernameParam);
+      const userDevices = await devices.find({ 
+        username: { $regex: new RegExp(`^${usernameParam}$`, 'i') }
+      }).toArray();
+      console.log("[API] Found devices:", userDevices.length);
+      return NextResponse.json(userDevices);
+    }
+
+    // Try to get authenticated user from token (web browser)
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    if (token?.username) {
+      const authenticatedUsername = (token.username as string).toLowerCase();
+      console.log("[API] Fetching devices for authenticated user:", authenticatedUsername);
+      const userDevices = await devices.find({ 
+        username: { $regex: new RegExp(`^${authenticatedUsername}$`, 'i') }
+      }).toArray();
+      console.log("[API] Found devices:", userDevices.length);
+      return NextResponse.json(userDevices);
+    }
+
+    // No auth - return empty
+    return NextResponse.json([]);
   } catch (error) {
     console.error("Error fetching devices:", error);
     return NextResponse.json({ error: "Failed to fetch devices" }, { status: 500 });

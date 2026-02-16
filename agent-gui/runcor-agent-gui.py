@@ -434,19 +434,20 @@ RAM: {info.get('ram', 'N/A')} GB
         
     def api_request(self, method, endpoint, data=None):
         """Make API request"""
+        # Add username to query params for GET requests (agent authentication)
         url = f"{API_URL}{endpoint}"
+        if method == "GET" and USERNAME and "?" not in endpoint:
+            url += f"?username={USERNAME}"
+        elif method == "GET" and USERNAME and "?" in endpoint:
+            url += f"&username={USERNAME}"
+        
         try:
             headers = {'Content-Type': 'application/json'}
+            request_data = None
             if data:
-                data = json.dumps(data).encode('utf-8')
+                request_data = json.dumps(data).encode('utf-8')
                 
-            req = urllib.request.Request(url, data=data, headers=headers, method=method)
-            
-            # Add basic auth if we have credentials
-            if AUTH_CREDENTIALS:
-                import base64
-                creds = base64.b64encode(f"{AUTH_CREDENTIALS[0]}:{AUTH_CREDENTIALS[1]}".encode()).decode()
-                req.add_header('Authorization', f'Basic {creds}')
+            req = urllib.request.Request(url, data=request_data, headers=headers, method=method)
                 
             with urllib.request.urlopen(req, timeout=30) as response:
                 return json.loads(response.read().decode('utf-8'))
