@@ -21,8 +21,8 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
-# Configuration
-API_URL = "http://localhost:3000"
+# Configuration - Default to production
+API_URL = "https://runcor.io"
 DEVICE_ID = None
 USERNAME = None
 AUTH_CREDENTIALS = None  # (username, password)
@@ -141,16 +141,21 @@ class RunCorAgentGUI:
         self.password_entry = ttk.Entry(self.login_frame, width=40, show="*")
         self.password_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
         
-        # API URL
-        ttk.Label(self.login_frame, text="API URL:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.api_url_entry = ttk.Entry(self.login_frame, width=40)
+        # API URL (pre-filled with production, can be changed for testing)
+        ttk.Label(self.login_frame, text="Server URL:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.api_url_entry = ttk.Entry(self.login_frame, width=40, foreground="gray")
         self.api_url_entry.insert(0, API_URL)
         self.api_url_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        
+        # Add a hint label
+        hint_label = ttk.Label(self.login_frame, text="(Leave as-is for runcor.io)", 
+                               font=('', 8), foreground="gray")
+        hint_label.grid(row=3, column=1, sticky=tk.W, padx=5)
         
         # Register button
         self.login_btn = ttk.Button(self.login_frame, text="Connect Device", 
                                     command=self.on_login, style='Accent.TButton')
-        self.login_btn.grid(row=3, column=0, columnspan=2, pady=20)
+        self.login_btn.grid(row=4, column=0, columnspan=2, pady=20)
         
         # Hardware detection preview
         self.hw_preview = ttk.Label(self.login_frame, text="Click Connect to detect hardware...",
