@@ -1,23 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { 
   ArrowLeft, 
   Upload, 
   Play, 
-  DollarSign, 
+  Coins, 
   Cpu, 
   Code,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Wallet
 } from "lucide-react";
 
 export default function CreateJobPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const username = (session?.user as any)?.username || "unknown";
+  
+  // Fetch wallet balance on mount
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const response = await fetch("/api/wallet");
+        if (response.ok) {
+          const data = await response.json();
+          setBalance(data.balance);
+        }
+      } catch (error) {
+        console.error("Failed to fetch balance:", error);
+      }
+    };
+    fetchBalance();
+  }, []);
   const [title, setTitle] = useState("");
   const [type, setType] = useState("python");
   const [script, setScript] = useState(`#!/usr/bin/env python3
@@ -43,6 +60,7 @@ print("Job completed!")
 print(f"Result: {result}")
 `);
   const [reward, setReward] = useState("10");
+  const [balance, setBalance] = useState(0);
   const [requiredCapabilities, setRequiredCapabilities] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{success?: boolean; message?: string; jobId?: string} | null>(null);
@@ -184,19 +202,27 @@ print(f"Result: {result}")
 
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-2">
-                  Reward (USD)
+                  Reward (Tokens)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
                   <input
                     type="number"
                     value={reward}
                     onChange={(e) => setReward(e.target.value)}
                     min="1"
-                    step="0.01"
+                    step="1"
                     className="w-full pl-10 pr-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
                     required
                   />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-zinc-500">
+                    Balance: {balance.toLocaleString()} tokens
+                  </p>
+                  {parseInt(reward) > balance && (
+                    <p className="text-xs text-red-400">Insufficient balance</p>
+                  )}
                 </div>
               </div>
             </div>

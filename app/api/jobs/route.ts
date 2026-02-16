@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
 import { getToken } from "next-auth/jwt";
+import { recordTransaction } from "../wallet/route";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/runcor";
 const DB_NAME = "runcor";
@@ -143,16 +144,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const jobReward = reward || 0;
+
+    // Check if user has enough balance
+    const users = db.collection("users");
+    const user = await users.findOne({ username: postedBy.toLowerCase() });
+    
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const currentBalance = user.walletBalance || 0;
+    if (currentBalance < jobReward) {
+      return NextResponse.json(
+        { error: "Insufficient balance", balance: currentBalance, required: jobReward },
+        { status: 400 }
+      );
+    }
+
+    // Deduct tokens from poster
+    await recordTransaction(
+      postedBy,
+      "debit",
+      jobReward,
+      `Payment for job: ${title}`,
+      undefined
+    );
+
     const job = {
       title,
       type, // "ml_training", "data_processing", "compute"
       status: "pending",
-      postedBy,
-      reward: reward || 0,
+      postedBy: postedBy.toLowerCase(),
+      reward: jobReward,
       script: script || null,
       scriptUrl: scriptUrl || null,
       requiredCapabilities: requiredCapabilities || [],
       deviceId: null,
+      claimedBy: null,
       createdAt: new Date().toISOString(),
       claimedAt: null,
       startedAt: null,
@@ -167,6 +196,7 @@ export async function POST(request: NextRequest) {
       success: true,
       jobId: result.insertedId,
       job: { ...job, _id: result.insertedId },
+      newBalance: currentBalance - jobReward,
     });
   } catch (error) {
     console.error("Error creating job:", error);
@@ -219,6 +249,23 @@ export async function PATCH(request: NextRequest) {
     if (!job) {
       console.log("[Jobs API] Update failed - job not found or deviceId mismatch");
       return NextResponse.json({ error: "Job not found or not owned by device" }, { status: 404 });
+    }
+
+    // If job completed successfully, pay the claimer
+    if (status === "completed" && existingJob && existingJob.claimedBy && existingJob.reward > 0) {
+      try {
+        await recordTransaction(
+          existingJob.claimedBy,
+          "credit",
+          existingJob.reward,
+          `Earnings from job: ${existingJob.title}`,
+          jobId
+        );
+        console.log("[Jobs API] Paid", existingJob.reward, "tokens to", existingJob.claimedBy);
+      } catch (err) {
+        console.error("[Jobs API] Failed to record payment:", err);
+        // Don't fail the job completion if payment fails - we'll handle it manually
+      }
     }
 
     console.log("[Jobs API] Job updated successfully:", job._id, "status:", job.status);

@@ -257,8 +257,8 @@ export default function ActiveOperations() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-mono text-amber-400">${selectedJob.reward.toFixed(2)}</p>
-                <p className="text-xs text-zinc-500">Reward</p>
+                <p className="font-mono text-amber-400">{selectedJob.reward.toLocaleString()}</p>
+                <p className="text-xs text-zinc-500">tokens</p>
               </div>
             </div>
 
@@ -389,7 +389,7 @@ export default function ActiveOperations() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-zinc-400">Reward</span>
-                      <span className="font-mono text-emerald-400">${selectedJob.reward.toFixed(2)}</span>
+                      <span className="font-mono text-emerald-400">{selectedJob.reward.toLocaleString()} tokens</span>
                     </div>
                   </div>
                 </div>

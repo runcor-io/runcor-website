@@ -7,9 +7,7 @@ import { useSession } from "next-auth/react";
 import {
   Briefcase,
   Plus,
-  Radio,
   Activity,
-  Shield,
   Wallet,
   Package,
   BarChart3,
@@ -19,14 +17,12 @@ import RequireAuth from "../components/RequireAuth";
 import LogoutButton from "../components/LogoutButton";
 
 const navItems = [
-  { href: "/contractor", label: "Mission Control", icon: Briefcase },
-  { href: "/contractor/create", label: "New Project", icon: Plus },
-  { href: "/contractor/fleet", label: "Fleet Selection", icon: Radio },
-  { href: "/contractor/tracking", label: "Active Ops", icon: Activity },
-  { href: "/contractor/verification", label: "Verification", icon: Shield },
-  { href: "/contractor/vault", label: "Vault & Settlement", icon: Wallet },
+  { href: "/contractor", label: "Dashboard", icon: Briefcase },
+  { href: "/contractor/create", label: "Post Job", icon: Plus },
+  { href: "/contractor/tracking", label: "My Jobs", icon: Activity },
   { href: "/contractor/results", label: "Results", icon: Package },
-  { href: "/contractor/analytics", label: "Intelligence", icon: BarChart3 },
+  { href: "/contractor/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/contractor/wallet", label: "Wallet", icon: Wallet },
 ];
 
 export default function ContractorLayout({
@@ -110,13 +106,13 @@ export default function ContractorLayout({
               </div>
             </div>
             <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-xs text-zinc-500 font-mono">PENDING PAYMENTS</p>
-                <p className="text-sm font-mono text-amber-400">0.156 ETH</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white">
+              <Link 
+                href="/profile" 
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                title="Profile"
+              >
                 {username.charAt(0).toUpperCase()}
-              </div>
+              </Link>
             </div>
           </header>
 

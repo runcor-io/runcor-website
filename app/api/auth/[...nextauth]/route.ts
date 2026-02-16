@@ -43,12 +43,14 @@ const handler = NextAuth({
           // Hash password
           const hashedPassword = await bcrypt.hash(password, 10);
 
-          // Create user
+          // Create user with 1000 free tokens
           const newUser = {
             username: normalizedUsername,
             password: hashedPassword,
             role: role || "owner", // "owner" (device owner) or "contractor"
+            walletBalance: 1000, // Free tokens on signup
             createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
 
           await users.insertOne(newUser);
@@ -57,6 +59,7 @@ const handler = NextAuth({
             id: normalizedUsername,
             username: normalizedUsername,
             role: newUser.role,
+            walletBalance: newUser.walletBalance,
           };
         }
 
@@ -75,6 +78,7 @@ const handler = NextAuth({
           id: normalizedUsername,
           username: normalizedUsername,
           role: user.role,
+          walletBalance: user.walletBalance || 0,
         };
       },
     }),
@@ -105,6 +109,7 @@ const handler = NextAuth({
       if (user) {
         token.username = user.username;
         token.role = user.role;
+        token.walletBalance = user.walletBalance;
       }
       return token;
     },
@@ -114,6 +119,7 @@ const handler = NextAuth({
           ...session.user,
           username: token.username as string,
           role: token.role as string,
+          walletBalance: token.walletBalance as number,
         };
       }
       return session;

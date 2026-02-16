@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
-import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/runcor";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token?.username) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const username = (session.user as any).username;
+    const username = (token.username as string).toLowerCase();
 
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
@@ -37,8 +37,15 @@ export async function GET(request: NextRequest) {
     const pendingJobs = jobs.filter((j) => j.status === "pending");
     const runningJobs = jobs.filter((j) => j.status === "running");
 
-    // Total earnings
-    const totalEarnings = completedJobs.reduce((sum, j) => sum + (j.reward || 0), 0);
+    // Total earnings (for claimed jobs) and total spent (for posted jobs)
+    const postedJobs = jobs.filter((j) => j.postedBy?.toLowerCase() === username.toLowerCase());
+    const claimedJobs = jobs.filter((j) => j.claimedBy?.toLowerCase() === username.toLowerCase());
+    
+    const totalEarnings = claimedJobs
+      .filter((j) => j.status === "completed")
+      .reduce((sum, j) => sum + (j.reward || 0), 0);
+    
+    const totalSpent = postedJobs.reduce((sum, j) => sum + (j.reward || 0), 0);
 
     // Earnings by day (last 30 days)
     const thirtyDaysAgo = new Date();
@@ -59,6 +66,23 @@ export async function GET(request: NextRequest) {
     });
 
     const earningsChart = Object.entries(earningsByDay)
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Spending by day (for posted jobs)
+    const spendingByDay: Record<string, number> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      spendingByDay[d.toISOString().split("T")[0]] = 0;
+    }
+    postedJobs.forEach((job) => {
+      const date = job.createdAt?.split("T")[0];
+      if (date && spendingByDay[date] !== undefined) {
+        spendingByDay[date] += job.reward || 0;
+      }
+    });
+    const spendingChart = Object.entries(spendingByDay)
       .map(([date, amount]) => ({ date, amount }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -113,9 +137,11 @@ export async function GET(request: NextRequest) {
         pendingJobs: pendingJobs.length,
         runningJobs: runningJobs.length,
         totalEarnings,
+        totalSpent,
         successRate: jobs.length > 0 ? Math.round((completedJobs.length / jobs.length) * 100) : 0,
       },
       earningsChart,
+      spendingChart,
       jobsByType: Object.entries(jobsByType).map(([type, count]) => ({ type, count })),
       deviceStats,
       recentActivity,

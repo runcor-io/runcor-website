@@ -27,7 +27,7 @@ interface WalletData {
   transactions: Transaction[];
 }
 
-export default function WalletPage() {
+export default function ContractorWalletPage() {
   const { data: session } = useSession();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,7 @@ export default function WalletPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+        <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />
         <span className="ml-3 text-zinc-400">Loading wallet...</span>
       </div>
     );
@@ -99,7 +99,7 @@ export default function WalletPage() {
         </div>
         <button
           onClick={fetchWallet}
-          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-cyan-500/50 transition-colors"
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 transition-colors"
         >
           <RefreshCw className="w-4 h-4 text-zinc-400" />
         </button>
@@ -125,7 +125,7 @@ export default function WalletPage() {
               </p>
               <p className="text-sm text-zinc-500 mt-1">tokens</p>
             </div>
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
                 <Coins className="w-6 h-6 text-white" />
               </div>
           </div>
@@ -219,11 +219,11 @@ export default function WalletPage() {
 
       {/* Info Notice */}
       <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-          <Coins className="w-5 h-5 text-blue-400" />
+        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+          <Coins className="w-5 h-5 text-amber-400" />
         </div>
         <div className="flex-1">
-          <p className="font-medium text-blue-400">RunCor Tokens</p>
+          <p className="font-medium text-amber-400">RunCor Tokens</p>
           <p className="text-sm text-zinc-400">
             Tokens are used to pay for job postings. Earn tokens by completing jobs posted by others.
             New accounts start with 1,000 free tokens.

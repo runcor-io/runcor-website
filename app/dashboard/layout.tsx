@@ -10,7 +10,6 @@ import {
   Briefcase,
   Wallet,
   BarChart3,
-  Zap,
   Radio,
   Building2,
 } from "lucide-react";
@@ -18,13 +17,12 @@ import RequireAuth from "../components/RequireAuth";
 import LogoutButton from "../components/LogoutButton";
 
 const navItems = [
-  { href: "/dashboard", label: "Fleet Command", icon: LayoutDashboard },
-  { href: "/dashboard/onboarding", label: "Onboarding", icon: Zap },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/device", label: "Devices", icon: Cpu },
-  { href: "/dashboard/jobs", label: "Job Monitor", icon: Briefcase },
+  { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
   { href: "/dashboard/marketplace", label: "Marketplace", icon: Radio },
-  { href: "/dashboard/wallet", label: "Blockchain", icon: Wallet },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/wallet", label: "Wallet", icon: Wallet },
 ];
 
 export default function DashboardLayout({
@@ -109,10 +107,13 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-xs text-zinc-500 font-mono">NETWORK EARNINGS</p>
-                <p className="text-sm font-mono text-cyan-400">+2.847 ETH</p>
-              </div>
+              <Link 
+                href="/profile" 
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity"
+                title="Profile"
+              >
+                {username.charAt(0).toUpperCase()}
+              </Link>
             </div>
           </header>
 

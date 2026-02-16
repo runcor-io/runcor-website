@@ -1,237 +1,324 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Shield,
   CheckCircle,
   XCircle,
-  Eye,
-  FileCheck,
-  AlertTriangle,
-  ChevronRight,
-  Download,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+  Terminal,
+  Cpu,
+  Calendar,
   Hash,
+  User,
 } from "lucide-react";
 
-const verificationItems = [
-  {
-    id: 1,
-    type: "hash",
-    name: "Output Hash Verification",
-    status: "passed",
-    details: "SHA-256 match confirmed",
-    value: "a3f5c8...9e2d",
-  },
-  {
-    id: 2,
-    type: "container",
-    name: "Container Integrity",
-    status: "passed",
-    details: "No tampering detected",
-    value: "docker:sha256:7d8a...",
-  },
-  {
-    id: 3,
-    type: "resource",
-    name: "Resource Usage Audit",
-    status: "passed",
-    details: "Within declared bounds",
-    value: "GPU: 87% avg",
-  },
-  {
-    id: 4,
-    type: "time",
-    name: "Execution Time",
-    status: "passed",
-    details: "Completed within SLA",
-    value: "1h 23m / 2h max",
-  },
-];
-
-const disputeReasons = [
-  "Output doesn't match specification",
-  "Incomplete or corrupted files",
-  "Quality below acceptable threshold",
-  "Other (describe in details)",
-];
+interface Job {
+  _id: string;
+  title: string;
+  status: string;
+  deviceId: string;
+  claimedBy: string;
+  postedBy: string;
+  createdAt: string;
+  claimedAt: string;
+  startedAt: string;
+  completedAt: string;
+  logs: string[];
+  result: any;
+  error: string;
+  reward: number;
+}
 
 export default function Verification() {
-  const [showDispute, setShowDispute] = useState(false);
-  const [selectedReason, setSelectedReason] = useState("");
+  const { data: session } = useSession();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
+  const fetchJobs = async () => {
+    try {
+      const response = await fetch("/api/jobs");
+      if (response.ok) {
+        const data = await response.json();
+        // Filter jobs posted by current user
+        const myJobs = data.filter(
+          (job: Job) =>
+            job.postedBy?.toLowerCase() === (session?.user as any)?.username?.toLowerCase()
+        );
+        setJobs(myJobs);
+        if (myJobs.length > 0 && !selectedJob) {
+          setSelectedJob(myJobs[0]);
+        }
+      } else {
+        setError("Failed to load jobs");
+      }
+    } catch (err) {
+      setError("Failed to load jobs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchJobs();
+    }
+  }, [session]);
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString();
+  };
+
+  const getDuration = (start: string, end: string) => {
+    if (!start || !end) return "N/A";
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />
+        <span className="ml-3 text-zinc-400">Loading verification data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Verification Chamber</h1>
-          <p className="text-gray-500 text-sm">Quality assurance and proof validation</p>
+          <h1 className="text-2xl font-bold text-white">Verification</h1>
+          <p className="text-zinc-500 text-sm">Audit job execution and verify results</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-green-500/30 bg-green-500/10">
-            <CheckCircle className="w-4 h-4 text-green-400" />
-            <span className="text-xs font-mono text-green-400">ALL CHECKS PASSED</span>
-          </div>
-        </div>
+        <button
+          onClick={fetchJobs}
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4 text-zinc-400" />
+        </button>
       </div>
 
-      {/* Project Summary */}
-      <div className="card p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="font-bold text-lg mb-1">PRJ-4521: Blender Render Batch</h2>
-            <p className="text-gray-500 text-sm">Completed 15 minutes ago • RTX 4090 Server</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold font-mono text-cyan-400">0.045 ETH</p>
-            <p className="text-xs text-gray-500">Ready for release</p>
-          </div>
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          <p className="text-red-400">{error}</p>
         </div>
-      </div>
+      )}
 
-      {/* Verification Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Automated Verification */}
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <Shield className="w-5 h-5 text-cyan-400" />
-            <h3 className="font-bold">Automated Verification</h3>
-          </div>
-          <div className="space-y-3">
-            {verificationItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-white/5"
+      {jobs.length === 0 ? (
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-12 text-center">
+          <Shield className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">No jobs to verify</h3>
+          <p className="text-zinc-500">Post a job to see verification details here.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Jobs List */}
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            {jobs.map((job) => (
+              <button
+                key={job._id}
+                onClick={() => setSelectedJob(job)}
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
+                  selectedJob?._id === job._id
+                    ? "border-amber-500/50 bg-amber-500/5"
+                    : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
+                }`}
               >
-                <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-xs text-gray-500">{item.details}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-mono text-gray-400">{item.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Results Preview */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5 text-amber-400" />
-              <h3 className="font-bold">Results Preview</h3>
-            </div>
-            <button className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-              <Download className="w-3 h-3" />
-              Download All
-            </button>
-          </div>
-          
-          {/* Preview Grid */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-video rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                <div className="text-center">
-                  <FileCheck className="w-6 h-6 text-gray-600 mx-auto mb-1" />
-                  <span className="text-xs text-gray-600">frame_{i * 30}.png</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-3 rounded-lg bg-black border border-gray-800">
-            <div className="flex items-center gap-2 text-xs">
-              <Hash className="w-3 h-3 text-gray-500" />
-              <span className="text-gray-500">Merkle Root:</span>
-              <span className="font-mono text-gray-400">0x7a3f...c9e2</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Panel */}
-      <div className="card p-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-            </div>
-            <div>
-              <p className="font-bold">Verification Complete</p>
-              <p className="text-sm text-gray-400">
-                All automated checks passed. Release payment to device owner?
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowDispute(true)}
-              className="px-4 py-2 rounded-full bg-white/5 text-gray-400 hover:text-white font-medium text-sm transition-all"
-            >
-              Reject & Dispute
-            </button>
-            <button className="btn-pill bg-green-500 hover:bg-green-400 text-black border-none">
-              <CheckCircle className="w-4 h-4" />
-              Accept & Release
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Dispute Modal */}
-      {showDispute && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="card p-8 max-w-lg w-full">
-            <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-4 text-red-400" />
-            </div>
-            <h2 className="text-xl font-bold text-center mb-2">Initiate Dispute</h2>
-            <p className="text-gray-400 text-center text-sm mb-6">
-              Describe the issue with the delivered work. Your escrowed funds will remain locked pending arbitration.
-            </p>
-            
-            <div className="space-y-3 mb-6">
-              <p className="text-sm font-medium">Reason for dispute:</p>
-              {disputeReasons.map((reason) => (
-                <button
-                  key={reason}
-                  onClick={() => setSelectedReason(reason)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
-                    selectedReason === reason
-                      ? "border-red-500/50 bg-red-500/10"
-                      : "border-gray-800 hover:border-gray-600"
-                  }`}
-                >
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full border-2 ${
-                      selectedReason === reason ? "bg-red-500 border-red-500" : "border-gray-600"
-                    }`} />
-                    <span className="text-sm">{reason}</span>
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        job.status === "completed"
+                          ? "bg-emerald-500/20"
+                          : job.status === "failed"
+                          ? "bg-red-500/20"
+                          : job.status === "running"
+                          ? "bg-cyan-500/20"
+                          : "bg-amber-500/20"
+                      }`}
+                    >
+                      {job.status === "completed" ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      ) : job.status === "failed" ? (
+                        <XCircle className="w-5 h-5 text-red-400" />
+                      ) : job.status === "running" ? (
+                        <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-amber-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm text-white">{job.title}</p>
+                      <p className="text-xs text-zinc-500">{job._id.slice(-8)}</p>
+                    </div>
                   </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDispute(false)}
-                className="flex-1 btn-pill-secondary"
-              >
-                Cancel
+                </div>
+                <div className="mt-3">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      job.status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : job.status === "failed"
+                        ? "bg-red-500/10 text-red-400"
+                        : job.status === "running"
+                        ? "bg-cyan-500/10 text-cyan-400"
+                        : "bg-amber-500/10 text-amber-400"
+                    }`}
+                  >
+                    {job.status}
+                  </span>
+                </div>
               </button>
-              <button
-                onClick={() => setShowDispute(false)}
-                disabled={!selectedReason}
-                className="flex-1 px-4 py-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Submit Dispute
-              </button>
-            </div>
+            ))}
           </div>
+
+          {/* Verification Details */}
+          {selectedJob && (
+            <div className="lg:col-span-2 space-y-4">
+              {/* Job Status Card */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">{selectedJob.title}</h2>
+                    <p className="text-zinc-500 text-sm">Job ID: {selectedJob._id}</p>
+                  </div>
+                  <div
+                    className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                      selectedJob.status === "completed"
+                        ? "bg-emerald-500/10 border border-emerald-500/30"
+                        : selectedJob.status === "failed"
+                        ? "bg-red-500/10 border border-red-500/30"
+                        : "bg-amber-500/10 border border-amber-500/30"
+                    }`}
+                  >
+                    {selectedJob.status === "completed" ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    ) : selectedJob.status === "failed" ? (
+                      <XCircle className="w-5 h-5 text-red-400" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-amber-400" />
+                    )}
+                    <span
+                      className={`font-medium ${
+                        selectedJob.status === "completed"
+                          ? "text-emerald-400"
+                          : selectedJob.status === "failed"
+                          ? "text-red-400"
+                          : "text-amber-400"
+                      }`}
+                    >
+                      {selectedJob.status === "completed"
+                        ? "Verified"
+                        : selectedJob.status === "failed"
+                        ? "Failed"
+                        : "Pending"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="space-y-4">
+                  <h3 className="font-medium text-white flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-zinc-400" />
+                    Execution Timeline
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-3 rounded-lg bg-zinc-900/50">
+                      <p className="text-zinc-500 text-xs mb-1">Posted</p>
+                      <p className="text-zinc-300">{formatDate(selectedJob.createdAt)}</p>
+                    </div>
+                    {selectedJob.claimedAt && (
+                      <div className="p-3 rounded-lg bg-zinc-900/50">
+                        <p className="text-zinc-500 text-xs mb-1">Claimed</p>
+                        <p className="text-zinc-300">{formatDate(selectedJob.claimedAt)}</p>
+                      </div>
+                    )}
+                    {selectedJob.startedAt && (
+                      <div className="p-3 rounded-lg bg-zinc-900/50">
+                        <p className="text-zinc-500 text-xs mb-1">Started</p>
+                        <p className="text-zinc-300">{formatDate(selectedJob.startedAt)}</p>
+                      </div>
+                    )}
+                    {selectedJob.completedAt && (
+                      <div className="p-3 rounded-lg bg-zinc-900/50">
+                        <p className="text-zinc-500 text-xs mb-1">Completed</p>
+                        <p className="text-zinc-300">{formatDate(selectedJob.completedAt)}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedJob.startedAt && selectedJob.completedAt && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <p className="text-amber-400 text-sm">
+                        Duration: {getDuration(selectedJob.startedAt, selectedJob.completedAt)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Device Info */}
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
+                <h3 className="font-medium text-white mb-4 flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-zinc-400" />
+                  Execution Details
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="p-3 rounded-lg bg-zinc-900/50">
+                    <p className="text-zinc-500 text-xs mb-1">Device ID</p>
+                    <p className="font-mono text-zinc-300">{selectedJob.deviceId || "Not assigned"}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-zinc-900/50">
+                    <p className="text-zinc-500 text-xs mb-1">Executed By</p>
+                    <p className="text-zinc-300 flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {selectedJob.claimedBy || "Not claimed"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Details (if failed) */}
+              {selectedJob.error && (
+                <div className="bg-red-950/30 border border-red-500/30 rounded-xl p-6">
+                  <h3 className="font-medium text-red-400 mb-2 flex items-center gap-2">
+                    <XCircle className="w-4 h-4" />
+                    Error Details
+                  </h3>
+                  <p className="text-red-400/70 text-sm">{selectedJob.error}</p>
+                </div>
+              )}
+
+              {/* Logs */}
+              {selectedJob.logs && selectedJob.logs.length > 0 && (
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
+                  <h3 className="font-medium text-white mb-3 flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-zinc-400" />
+                    Execution Logs
+                  </h3>
+                  <div className="bg-black rounded-lg p-4 font-mono text-xs text-zinc-400 max-h-64 overflow-y-auto">
+                    {selectedJob.logs.map((log, i) => (
+                      <div key={i} className="py-0.5">
+                        <span className="text-zinc-600">[{i + 1}]</span> {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -37,7 +37,7 @@ interface Job {
   result?: any;
 }
 
-const filters = ["All", "Pending", "Running", "Completed", "Failed"];
+const filters = ["All", "Posted by Me", "Claimed by Me", "Pending", "Running", "Completed", "Failed"];
 
 export default function JobMonitor() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -124,7 +124,14 @@ export default function JobMonitor() {
   };
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesFilter = activeFilter === "All" || job.status === activeFilter.toLowerCase();
+    let matchesFilter = true;
+    if (activeFilter === "Posted by Me") {
+      matchesFilter = job.postedBy?.toLowerCase() === username.toLowerCase();
+    } else if (activeFilter === "Claimed by Me") {
+      matchesFilter = job.claimedBy?.toLowerCase() === username.toLowerCase();
+    } else if (activeFilter !== "All") {
+      matchesFilter = job.status === activeFilter.toLowerCase();
+    }
     const matchesSearch = 
       job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -311,6 +318,7 @@ export default function JobMonitor() {
             <thead className="bg-zinc-900 border-b border-zinc-800">
               <tr>
                 <th className="px-6 py-4 text-xs font-medium text-zinc-400 uppercase">Job</th>
+                <th className="px-6 py-4 text-xs font-medium text-zinc-400 uppercase">Role</th>
                 <th className="px-6 py-4 text-xs font-medium text-zinc-400 uppercase">Device</th>
                 <th className="px-6 py-4 text-xs font-medium text-zinc-400 uppercase">Status</th>
                 <th className="px-6 py-4 text-xs font-medium text-zinc-400 uppercase">Progress</th>
@@ -337,6 +345,24 @@ export default function JobMonitor() {
                         </div>
                       </div>
                     </td>
+                    <td className="px-6 py-4">
+                      {job.postedBy?.toLowerCase() === username.toLowerCase() ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                          Posted
+                        </span>
+                      ) : job.claimedBy?.toLowerCase() === username.toLowerCase() ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                          Claimed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-800 text-zinc-400 text-xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                          Unknown
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm text-zinc-300">
                       {job.deviceId ? job.deviceId.slice(0, 12) + "..." : "—"}
                     </td>
@@ -360,7 +386,19 @@ export default function JobMonitor() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-mono text-sm text-cyan-400">${job.reward?.toFixed(2) || "0.00"}</span>
+                      {job.postedBy?.toLowerCase() === username.toLowerCase() ? (
+                        <span className="font-mono text-sm text-rose-400" title="You are paying this reward">
+                          -${job.reward?.toFixed(2) || "0.00"}
+                        </span>
+                      ) : job.claimedBy?.toLowerCase() === username.toLowerCase() ? (
+                        <span className="font-mono text-sm text-emerald-400" title="You will earn this reward">
+                          +${job.reward?.toFixed(2) || "0.00"}
+                        </span>
+                      ) : (
+                        <span className="font-mono text-sm text-zinc-400">
+                          ${job.reward?.toFixed(2) || "0.00"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-zinc-300">
@@ -378,7 +416,7 @@ export default function JobMonitor() {
                   </tr>
                   {expandedJob === job._id && (
                     <tr className="bg-zinc-900/30">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={8} className="px-6 py-4">
                         <div className="space-y-3">
                           {/* Control Buttons */}
                           {(job.status === "running" || job.status === "paused" || job.status === "claimed") && (
@@ -432,6 +470,44 @@ export default function JobMonitor() {
                               </button>
                             </div>
                           )}
+                          
+                          {/* Job Ownership & Financial Info */}
+                          <div className="grid grid-cols-2 gap-4 text-xs pb-3 border-b border-zinc-800">
+                            <div>
+                              <span className="text-zinc-500">Posted by:</span>
+                              <span className={`ml-2 font-medium ${job.postedBy?.toLowerCase() === username.toLowerCase() ? 'text-purple-400' : 'text-zinc-300'}`}>
+                                {job.postedBy}
+                                {job.postedBy?.toLowerCase() === username.toLowerCase() && ' (You)'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500">Claimed by:</span>
+                              <span className={`ml-2 font-medium ${job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'text-cyan-400' : 'text-zinc-300'}`}>
+                                {job.claimedBy || '—'}
+                                {job.claimedBy?.toLowerCase() === username.toLowerCase() && ' (You)'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500">
+                                {job.postedBy?.toLowerCase() === username.toLowerCase() ? 'Your Cost:' : 
+                                 job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'Your Earnings:' : 'Reward:'}
+                              </span>
+                              <span className={`ml-2 font-mono font-medium ${
+                                job.postedBy?.toLowerCase() === username.toLowerCase() ? 'text-rose-400' : 
+                                job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'text-emerald-400' : 'text-zinc-300'
+                              }`}>
+                                {job.postedBy?.toLowerCase() === username.toLowerCase() ? '-' : 
+                                 job.claimedBy?.toLowerCase() === username.toLowerCase() ? '+' : ''}
+                                ${job.reward?.toFixed(2) || "0.00"}
+                              </span>
+                            </div>
+                            {job.deviceId && (
+                              <div>
+                                <span className="text-zinc-500">Device ID:</span>
+                                <span className="ml-2 font-mono text-zinc-300">{job.deviceId}</span>
+                              </div>
+                            )}
+                          </div>
                           
                           <div className="flex items-center gap-2 text-sm text-zinc-400">
                             <Terminal className="w-4 h-4" />

@@ -1,0 +1,42 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      env:
+        # Dummy values for build - actual values come from Vercel
+        MONGODB_URI: mongodb://localhost:27017/runcor
+        NEXTAUTH_SECRET: build_secret_for_ci_only
+        NEXTAUTH_URL: http://localhost:3000
+        
+    - name: Check build output
+      run: |
+        if [ -d ".next" ]; then
+          echo "✅ Build successful - .next directory exists"
+          ls -la .next/
+        else
+          echo "❌ Build failed - .next directory not found"
+          exit 1
+        fi

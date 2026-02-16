@@ -195,9 +195,12 @@ export default function DeviceControl() {
           <p className="text-gray-400 mb-6">{error}</p>
           <div className="space-y-3">
             <p className="text-sm text-gray-500">To register a device:</p>
-            <code className="block p-4 rounded-lg bg-black border border-gray-800 text-sm text-left">
-              runcor-agent --register --username {currentUsername} --api-url http://localhost:3000
+            <code className="block p-4 rounded-lg bg-black border border-gray-800 text-sm text-left break-all">
+              runcor-agent --register --username {currentUsername} --api-url https://your-domain.com
             </code>
+            <p className="text-xs text-zinc-500 mt-2">
+              Replace &quot;your-domain.com&quot; with your actual domain
+            </p>
           </div>
           <button 
             onClick={fetchDevices}

@@ -190,9 +190,9 @@ export default function MissionControl() {
             <Shield className="w-4 h-4 text-cyan-400" />
           </div>
           <p className="text-3xl font-bold font-mono text-cyan-400">
-            ${stats.totalEscrow.toFixed(2)}
+            {stats.totalEscrow.toLocaleString()}
           </p>
-          <p className="text-xs text-zinc-500 mt-1">across {stats.activeJobs} projects</p>
+          <p className="text-xs text-zinc-500 mt-1">tokens across {stats.activeJobs} projects</p>
         </div>
         
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5">
@@ -258,8 +258,8 @@ export default function MissionControl() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-amber-400">${job.reward.toFixed(2)}</p>
-                    <p className="text-xs text-zinc-500">in escrow</p>
+                    <p className="font-mono text-amber-400">{job.reward.toLocaleString()}</p>
+                    <p className="text-xs text-zinc-500">tokens</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
