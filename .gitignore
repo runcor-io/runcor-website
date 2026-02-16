@@ -38,6 +38,8 @@ next-env.d.ts
 /data/
 
 # agent binaries in public (we build these separately)
+# But we need the main agent exe for download
 /public/downloads/*.exe
+!/public/downloads/RunCor-Agent.exe
 /public/downloads/runcor-agent-*
 !/public/downloads/install.sh
