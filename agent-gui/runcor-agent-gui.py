@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RunCor Agent - GUI Version
+RunCor Agent - Professional GUI
 A desktop application for connecting devices to the RunCor network.
 """
 
@@ -25,36 +25,36 @@ from datetime import datetime
 API_URL = "https://runcor.io"
 DEVICE_ID = None
 USERNAME = None
-AUTH_CREDENTIALS = None  # (username, password)
+AUTH_CREDENTIALS = None
 CAPABILITIES = []
 POLL_INTERVAL = 10
 CURRENT_JOB = None
 STOP_EVENT = threading.Event()
-GUI_OPEN = True  # Track if GUI is open
+GUI_OPEN = True
 
-# Optional: WebSocket support
-try:
-    import socketio
-    SOCKETIO_AVAILABLE = True
-except ImportError:
-    SOCKETIO_AVAILABLE = False
-
-SIO = None
+# Colors - Dark Professional Theme
+COLORS = {
+    'bg': '#0d1117',
+    'bg_secondary': '#161b22',
+    'bg_tertiary': '#21262d',
+    'border': '#30363d',
+    'text': '#c9d1d9',
+    'text_secondary': '#8b949e',
+    'accent': '#58a6ff',
+    'accent_hover': '#79b8ff',
+    'success': '#3fb950',
+    'warning': '#d29922',
+    'danger': '#f85149',
+    'info': '#58a6ff'
+}
 
 class RunCorAgentGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("RunCor Agent")
-        self.root.geometry("900x700")
-        self.root.minsize(800, 600)
-        
-        # Set window close handler
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
-        # Style
-        self.style = ttk.Style()
-        self.style.theme_use('clam')
-        self.configure_styles()
+        self.root.geometry("1000x750")
+        self.root.minsize(900, 650)
+        self.root.configure(bg=COLORS['bg'])
         
         # State
         self.logged_in = False
@@ -62,19 +62,100 @@ class RunCorAgentGUI:
         self.hardware_info = None
         self.worker_thread = None
         self.heartbeat_thread = None
+        self.jobs_completed = 0
+        self.total_earned = 0.0
         
         # Create widgets
+        self.create_styles()
         self.create_widgets()
-        
-        # Center window
         self.center_window()
         
-    def configure_styles(self):
-        """Configure custom styles"""
-        self.style.configure('Title.TLabel', font=('Helvetica', 20, 'bold'))
-        self.style.configure('Header.TLabel', font=('Helvetica', 12, 'bold'))
-        self.style.configure('Status.TLabel', font=('Helvetica', 10))
-        self.style.configure('Accent.TButton', font=('Helvetica', 10, 'bold'))
+    def create_styles(self):
+        """Configure professional dark theme styles"""
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        
+        # Configure base styles
+        self.style.configure('.', 
+                           background=COLORS['bg'],
+                           foreground=COLORS['text'],
+                           fieldbackground=COLORS['bg_secondary'],
+                           troughcolor=COLORS['bg_tertiary'])
+        
+        # Frame styles
+        self.style.configure('Card.TFrame', 
+                           background=COLORS['bg_secondary'],
+                           relief='flat')
+        
+        self.style.configure('Bordered.TFrame',
+                           background=COLORS['bg_secondary'],
+                           relief='solid',
+                           borderwidth=1)
+        
+        # Label styles
+        self.style.configure('Title.TLabel',
+                           background=COLORS['bg'],
+                           foreground=COLORS['text'],
+                           font=('Segoe UI', 24, 'bold'))
+        
+        self.style.configure('Header.TLabel',
+                           background=COLORS['bg_secondary'],
+                           foreground=COLORS['text'],
+                           font=('Segoe UI', 14, 'bold'))
+        
+        self.style.configure('Subtitle.TLabel',
+                           background=COLORS['bg_secondary'],
+                           foreground=COLORS['text_secondary'],
+                           font=('Segoe UI', 11))
+        
+        self.style.configure('Status.TLabel',
+                           background=COLORS['bg_secondary'],
+                           foreground=COLORS['text_secondary'],
+                           font=('Segoe UI', 10))
+        
+        # Button styles
+        self.style.configure('Accent.TButton',
+                           background=COLORS['accent'],
+                           foreground='#ffffff',
+                           font=('Segoe UI', 11, 'bold'),
+                           padding=(20, 10))
+        
+        self.style.map('Accent.TButton',
+                      background=[('active', COLORS['accent_hover']), ('pressed', COLORS['accent'])],
+                      foreground=[('active', '#ffffff')])
+        
+        self.style.configure('Secondary.TButton',
+                           background=COLORS['bg_tertiary'],
+                           foreground=COLORS['text'],
+                           font=('Segoe UI', 10),
+                           padding=(15, 8))
+        
+        self.style.map('Secondary.TButton',
+                      background=[('active', COLORS['border'])])
+        
+        self.style.configure('Danger.TButton',
+                           background=COLORS['danger'],
+                           foreground='#ffffff',
+                           font=('Segoe UI', 10, 'bold'),
+                           padding=(15, 8))
+        
+        # Entry styles
+        self.style.configure('Custom.TEntry',
+                           fieldbackground=COLORS['bg_tertiary'],
+                           foreground=COLORS['text'],
+                           insertcolor=COLORS['text'],
+                           padding=8)
+        
+        # LabelFrame styles
+        self.style.configure('Custom.TLabelframe',
+                           background=COLORS['bg_secondary'],
+                           borderwidth=1,
+                           relief='solid')
+        
+        self.style.configure('Custom.TLabelframe.Label',
+                           background=COLORS['bg_secondary'],
+                           foreground=COLORS['accent'],
+                           font=('Segoe UI', 11, 'bold'))
         
     def center_window(self):
         """Center the window on screen"""
@@ -86,173 +167,428 @@ class RunCorAgentGUI:
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
     def create_widgets(self):
-        """Create the GUI widgets"""
-        # Main container with padding
-        self.main_frame = ttk.Frame(self.root, padding="20")
-        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        """Create the professional GUI widgets"""
+        # Main container
+        self.main_frame = tk.Frame(self.root, bg=COLORS['bg'])
+        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # Configure grid weights
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        self.main_frame.columnconfigure(0, weight=1)
-        self.main_frame.rowconfigure(2, weight=1)
-        
-        # === Header ===
+        # Header
         self.create_header()
         
-        # === Login Section (shown initially) ===
-        self.create_login_section()
+        # Content area
+        self.content_frame = tk.Frame(self.main_frame, bg=COLORS['bg'])
+        self.content_frame.pack(fill=tk.BOTH, expand=True, pady=(20, 0))
         
-        # === Dashboard Section (shown after login) ===
-        self.create_dashboard_section()
+        # Login view
+        self.login_frame = self.create_login_card()
         
-        # === Log Section ===
+        # Dashboard view (hidden initially)
+        self.dashboard_frame = self.create_dashboard()
+        
+        # Log section
         self.create_log_section()
         
-        # Show login initially, hide dashboard
+        # Show login initially
         self.show_login()
         
     def create_header(self):
-        """Create header with logo"""
-        header = ttk.Frame(self.main_frame)
-        header.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 20))
+        """Create modern header"""
+        header = tk.Frame(self.main_frame, bg=COLORS['bg'])
+        header.pack(fill=tk.X)
         
-        # Title
-        title = ttk.Label(header, text="⚡ RUNCOR AGENT", style='Title.TLabel')
+        # Logo and title
+        title_frame = tk.Frame(header, bg=COLORS['bg'])
+        title_frame.pack(side=tk.LEFT)
+        
+        # Lightning bolt icon using unicode
+        logo = tk.Label(title_frame, text="⚡", font=('Segoe UI', 32), 
+                       bg=COLORS['bg'], fg=COLORS['accent'])
+        logo.pack(side=tk.LEFT, padx=(0, 10))
+        
+        title = tk.Label(title_frame, text="RUNCOR", font=('Segoe UI', 24, 'bold'),
+                        bg=COLORS['bg'], fg=COLORS['text'])
         title.pack(side=tk.LEFT)
         
-        # Status indicator
-        self.status_var = tk.StringVar(value="Not Connected")
-        self.status_label = ttk.Label(header, textvariable=self.status_var, 
-                                      foreground='gray', font=('Helvetica', 10))
-        self.status_label.pack(side=tk.RIGHT)
+        subtitle = tk.Label(title_frame, text="AGENT", font=('Segoe UI', 14),
+                           bg=COLORS['bg'], fg=COLORS['accent'])
+        subtitle.pack(side=tk.LEFT, padx=(5, 0), pady=(8, 0))
         
-    def create_login_section(self):
-        """Create login form"""
-        self.login_frame = ttk.LabelFrame(self.main_frame, text="Device Registration", padding="20")
+        # Status badge
+        self.status_frame = tk.Frame(header, bg=COLORS['bg_tertiary'], 
+                                    highlightbackground=COLORS['border'],
+                                    highlightthickness=1)
+        self.status_frame.pack(side=tk.RIGHT, padx=10)
         
-        # Username
-        ttk.Label(self.login_frame, text="Username:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.username_entry = ttk.Entry(self.login_frame, width=40)
-        self.username_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        # Status dot
+        self.status_dot = tk.Canvas(self.status_frame, width=10, height=10, 
+                                   bg=COLORS['bg_tertiary'], highlightthickness=0)
+        self.status_dot.pack(side=tk.LEFT, padx=(10, 5))
+        self.status_dot.create_oval(2, 2, 8, 8, fill=COLORS['text_secondary'], tags='dot')
         
-        # Password
-        ttk.Label(self.login_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.password_entry = ttk.Entry(self.login_frame, width=40, show="*")
-        self.password_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.status_text = tk.Label(self.status_frame, text="Disconnected", 
+                                   font=('Segoe UI', 10),
+                                   bg=COLORS['bg_tertiary'], fg=COLORS['text_secondary'])
+        self.status_text.pack(side=tk.LEFT, padx=(0, 10), pady=5)
         
-        # API URL (pre-filled with production, can be changed for testing)
-        ttk.Label(self.login_frame, text="Server URL:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.api_url_entry = ttk.Entry(self.login_frame, width=40, foreground="gray")
-        self.api_url_entry.insert(0, API_URL)
-        self.api_url_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
+    def create_login_card(self):
+        """Create modern login card"""
+        card = tk.Frame(self.content_frame, bg=COLORS['bg_secondary'],
+                       highlightbackground=COLORS['border'],
+                       highlightthickness=1)
         
-        # Add a hint label
-        hint_label = ttk.Label(self.login_frame, text="(Leave as-is for runcor.io)", 
-                               font=('', 8), foreground="gray")
-        hint_label.grid(row=3, column=1, sticky=tk.W, padx=5)
+        # Center the card
+        card.place(relx=0.5, rely=0.45, anchor='center', width=500)
         
-        # Register button
-        self.login_btn = ttk.Button(self.login_frame, text="Connect Device", 
-                                    command=self.on_login, style='Accent.TButton')
-        self.login_btn.grid(row=4, column=0, columnspan=2, pady=20)
+        # Card padding frame
+        inner = tk.Frame(card, bg=COLORS['bg_secondary'])
+        inner.pack(fill=tk.BOTH, expand=True, padx=40, pady=40)
         
-        # Hardware detection preview
-        self.hw_preview = ttk.Label(self.login_frame, text="Click Connect to detect hardware...",
-                                    foreground='gray', wraplength=500)
-        self.hw_preview.grid(row=4, column=0, columnspan=2, pady=10)
+        # Title
+        title = tk.Label(inner, text="Connect Device", font=('Segoe UI', 18, 'bold'),
+                        bg=COLORS['bg_secondary'], fg=COLORS['text'])
+        title.pack(anchor='w', pady=(0, 5))
         
-    def create_dashboard_section(self):
-        """Create dashboard (shown after login)"""
-        self.dashboard_frame = ttk.Frame(self.main_frame)
+        subtitle = tk.Label(inner, text="Enter your credentials to join the RunCor network",
+                           font=('Segoe UI', 11),
+                           bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
+        subtitle.pack(anchor='w', pady=(0, 25))
+        
+        # Form fields
+        self.create_form_field(inner, "Username", "username_entry")
+        self.create_form_field(inner, "Password", "password_entry", show="•")
+        self.create_form_field(inner, "Server URL", "api_url_entry", default=API_URL)
+        
+        # Server hint
+        hint = tk.Label(inner, text="Default: https://runcor.io", 
+                       font=('Segoe UI', 9),
+                       bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
+        hint.pack(anchor='w', padx=2)
+        
+        # Connect button
+        self.login_btn = tk.Button(inner, text="Connect Device", 
+                                  bg=COLORS['accent'], fg='white',
+                                  font=('Segoe UI', 12, 'bold'),
+                                  relief='flat', cursor='hand2',
+                                  padx=30, pady=12,
+                                  command=self.on_login)
+        self.login_btn.pack(fill=tk.X, pady=(25, 0))
+        
+        # Button hover effects
+        self.login_btn.bind('<Enter>', lambda e: self.login_btn.configure(bg=COLORS['accent_hover']))
+        self.login_btn.bind('<Leave>', lambda e: self.login_btn.configure(bg=COLORS['accent']))
+        
+        # Hardware preview
+        self.hw_preview = tk.Label(inner, text="Ready to detect hardware",
+                                  font=('Segoe UI', 10),
+                                  bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
+        self.hw_preview.pack(pady=(20, 0))
+        
+        return card
+        
+    def create_form_field(self, parent, label, attr_name, show=None, default=""):
+        """Create a form field with label"""
+        frame = tk.Frame(parent, bg=COLORS['bg_secondary'])
+        frame.pack(fill=tk.X, pady=(0, 15))
+        
+        lbl = tk.Label(frame, text=label, font=('Segoe UI', 10, 'bold'),
+                      bg=COLORS['bg_secondary'], fg=COLORS['text'])
+        lbl.pack(anchor='w', pady=(0, 5))
+        
+        entry = tk.Entry(frame, font=('Segoe UI', 11),
+                        bg=COLORS['bg_tertiary'], fg=COLORS['text'],
+                        insertbackground=COLORS['text'],
+                        relief='flat', highlightthickness=1,
+                        highlightbackground=COLORS['border'],
+                        highlightcolor=COLORS['accent'],
+                        show=show if show else '')
+        entry.pack(fill=tk.X, ipady=8, padx=1)
+        entry.insert(0, default)
+        
+        setattr(self, attr_name, entry)
+        
+    def create_dashboard(self):
+        """Create professional dashboard"""
+        dashboard = tk.Frame(self.content_frame, bg=COLORS['bg'])
+        
+        # Two column layout
+        dashboard.grid_columnconfigure(0, weight=1)
+        dashboard.grid_columnconfigure(1, weight=2)
+        dashboard.grid_rowconfigure(0, weight=1)
         
         # Left panel - Device Info
-        left_panel = ttk.LabelFrame(self.dashboard_frame, text="Device Information", padding="10")
-        left_panel.grid(row=0, column=0, sticky=(tk.N, tk.S, tk.W, tk.E), padx=(0, 10))
+        left_panel = self.create_device_panel(dashboard)
+        left_panel.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
         
-        self.device_info_text = tk.Text(left_panel, height=10, width=35, 
-                                        wrap=tk.WORD, font=('Consolas', 9),
-                                        bg='#1a1a1a', fg='#00ff00',
-                                        insertbackground='white')
+        # Right panel - Job Status & Stats
+        right_panel = self.create_job_panel(dashboard)
+        right_panel.grid(row=0, column=1, sticky='nsew')
+        
+        return dashboard
+        
+    def create_device_panel(self, parent):
+        """Create device information panel"""
+        panel = tk.Frame(parent, bg=COLORS['bg_secondary'],
+                        highlightbackground=COLORS['border'],
+                        highlightthickness=1)
+        
+        # Header
+        header = tk.Frame(panel, bg=COLORS['bg_tertiary'])
+        header.pack(fill=tk.X)
+        
+        icon = tk.Label(header, text="💻", font=('Segoe UI', 16),
+                       bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        icon.pack(side=tk.LEFT, padx=15, pady=10)
+        
+        title = tk.Label(header, text="Device Information", 
+                        font=('Segoe UI', 13, 'bold'),
+                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        title.pack(side=tk.LEFT)
+        
+        # Content
+        content = tk.Frame(panel, bg=COLORS['bg_secondary'])
+        content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        self.device_info_text = tk.Text(content, 
+                                       font=('Consolas', 10),
+                                       bg=COLORS['bg_secondary'], 
+                                       fg=COLORS['text'],
+                                       relief='flat',
+                                       wrap=tk.WORD,
+                                       height=12)
         self.device_info_text.pack(fill=tk.BOTH, expand=True)
+        self.device_info_text.insert(tk.END, "Waiting for device registration...")
         self.device_info_text.config(state=tk.DISABLED)
         
-        # Right panel - Job Status
-        right_panel = ttk.LabelFrame(self.dashboard_frame, text="Job Status", padding="10")
-        right_panel.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.W, tk.E))
-        self.dashboard_frame.columnconfigure(1, weight=1)
+        return panel
+        
+    def create_job_panel(self, parent):
+        """Create job status panel"""
+        panel = tk.Frame(parent, bg=COLORS['bg'])
+        
+        # Stats cards row
+        stats_frame = tk.Frame(panel, bg=COLORS['bg'])
+        stats_frame.pack(fill=tk.X, pady=(0, 10))
+        stats_frame.grid_columnconfigure(0, weight=1)
+        stats_frame.grid_columnconfigure(1, weight=1)
+        stats_frame.grid_columnconfigure(2, weight=1)
+        
+        # Jobs completed card
+        self.jobs_card = self.create_stat_card(stats_frame, "Jobs Completed", "0", 
+                                              COLORS['success'], 0, 0)
+        # Earnings card
+        self.earnings_card = self.create_stat_card(stats_frame, "Total Earned", "$0.00",
+                                                  COLORS['accent'], 0, 1)
+        # Status card
+        self.job_status_card = self.create_stat_card(stats_frame, "Status", "Idle",
+                                                    COLORS['text_secondary'], 0, 2)
+        
+        # Job details panel
+        job_details = tk.Frame(panel, bg=COLORS['bg_secondary'],
+                              highlightbackground=COLORS['border'],
+                              highlightthickness=1)
+        job_details.pack(fill=tk.BOTH, expand=True)
+        
+        # Job header
+        job_header = tk.Frame(job_details, bg=COLORS['bg_tertiary'])
+        job_header.pack(fill=tk.X)
+        
+        icon = tk.Label(job_header, text="⚙️", font=('Segoe UI', 16),
+                       bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        icon.pack(side=tk.LEFT, padx=15, pady=10)
+        
+        title = tk.Label(job_header, text="Current Job",
+                        font=('Segoe UI', 13, 'bold'),
+                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        title.pack(side=tk.LEFT)
+        
+        # Progress bar
+        self.progress_frame = tk.Frame(job_details, bg=COLORS['bg_secondary'])
+        self.progress_frame.pack(fill=tk.X, padx=15, pady=15)
         
         self.job_status_var = tk.StringVar(value="Waiting for jobs...")
-        ttk.Label(right_panel, textvariable=self.job_status_var, 
-                 font=('Helvetica', 12)).pack(pady=10)
+        status_lbl = tk.Label(self.progress_frame, textvariable=self.job_status_var,
+                             font=('Segoe UI', 11),
+                             bg=COLORS['bg_secondary'], fg=COLORS['text'])
+        status_lbl.pack(anchor='w', pady=(0, 10))
         
-        # Job progress
-        self.progress = ttk.Progressbar(right_panel, mode='indeterminate', length=300)
-        self.progress.pack(pady=10)
+        # Custom progress bar
+        self.progress_canvas = tk.Canvas(self.progress_frame, height=6, 
+                                        bg=COLORS['bg_tertiary'], 
+                                        highlightthickness=0)
+        self.progress_canvas.pack(fill=tk.X)
+        self.progress_fill = self.progress_canvas.create_rectangle(
+            0, 0, 0, 6, fill=COLORS['accent'], outline='')
         
-        # Current job details
-        self.job_details = scrolledtext.ScrolledText(right_panel, height=8, width=50,
-                                                      font=('Consolas', 9),
-                                                      bg='#1a1a1a', fg='#cccccc')
-        self.job_details.pack(fill=tk.BOTH, expand=True, pady=10)
-        self.job_details.insert(tk.END, "No active job\n")
+        # Job details text
+        self.job_details = scrolledtext.ScrolledText(
+            job_details, height=10,
+            font=('Consolas', 10),
+            bg=COLORS['bg_secondary'],
+            fg=COLORS['text_secondary'],
+            relief='flat',
+            wrap=tk.WORD)
+        self.job_details.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 15))
+        self.job_details.insert(tk.END, "No active job. The agent will automatically accept and execute jobs when available.\n")
         
         # Control buttons
-        btn_frame = ttk.Frame(right_panel)
-        btn_frame.pack(fill=tk.X, pady=10)
+        btn_frame = tk.Frame(job_details, bg=COLORS['bg_secondary'])
+        btn_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
         
-        self.pause_btn = ttk.Button(btn_frame, text="Pause", command=self.toggle_pause)
-        self.pause_btn.pack(side=tk.LEFT, padx=5)
+        self.pause_btn = tk.Button(btn_frame, text="⏸ Pause",
+                                  bg=COLORS['bg_tertiary'],
+                                  fg=COLORS['text'],
+                                  font=('Segoe UI', 10),
+                                  relief='flat', cursor='hand2',
+                                  padx=15, pady=8,
+                                  command=self.toggle_pause)
+        self.pause_btn.pack(side=tk.LEFT, padx=(0, 10))
         
-        self.estop_btn = ttk.Button(btn_frame, text="E-STOP", command=self.trigger_estop)
-        self.estop_btn.pack(side=tk.LEFT, padx=5)
+        self.estop_btn = tk.Button(btn_frame, text="⏹ E-STOP",
+                                  bg=COLORS['danger'],
+                                  fg='white',
+                                  font=('Segoe UI', 10, 'bold'),
+                                  relief='flat', cursor='hand2',
+                                  padx=15, pady=8,
+                                  command=self.trigger_estop)
+        self.estop_btn.pack(side=tk.LEFT)
         
-        ttk.Button(btn_frame, text="Disconnect", 
-                  command=self.disconnect).pack(side=tk.RIGHT, padx=5)
+        disconnect_btn = tk.Button(btn_frame, text="Disconnect",
+                                  bg=COLORS['bg_tertiary'],
+                                  fg=COLORS['text_secondary'],
+                                  font=('Segoe UI', 10),
+                                  relief='flat', cursor='hand2',
+                                  padx=15, pady=8,
+                                  command=self.disconnect)
+        disconnect_btn.pack(side=tk.RIGHT)
         
-        # Stats
-        stats_frame = ttk.Frame(right_panel)
-        stats_frame.pack(fill=tk.X, pady=10)
+        return panel
         
-        self.jobs_completed_var = tk.StringVar(value="Jobs: 0")
-        self.earnings_var = tk.StringVar(value="Earnings: $0.00")
+    def create_stat_card(self, parent, title, value, color, row, col):
+        """Create a statistic card"""
+        card = tk.Frame(parent, bg=COLORS['bg_secondary'],
+                       highlightbackground=COLORS['border'],
+                       highlightthickness=1)
+        card.grid(row=row, column=col, sticky='nsew', padx=5)
         
-        ttk.Label(stats_frame, textvariable=self.jobs_completed_var).pack(side=tk.LEFT, padx=10)
-        ttk.Label(stats_frame, textvariable=self.earnings_var).pack(side=tk.LEFT, padx=10)
+        # Color bar at top
+        bar = tk.Frame(card, bg=color, height=3)
+        bar.pack(fill=tk.X)
+        
+        # Content
+        content = tk.Frame(card, bg=COLORS['bg_secondary'])
+        content.pack(fill=tk.BOTH, expand=True, padx=15, pady=12)
+        
+        title_lbl = tk.Label(content, text=title.upper(),
+                            font=('Segoe UI', 9),
+                            bg=COLORS['bg_secondary'],
+                            fg=COLORS['text_secondary'])
+        title_lbl.pack(anchor='w')
+        
+        value_lbl = tk.Label(content, text=value,
+                            font=('Segoe UI', 22, 'bold'),
+                            bg=COLORS['bg_secondary'],
+                            fg=color)
+        value_lbl.pack(anchor='w', pady=(5, 0))
+        
+        return value_lbl
         
     def create_log_section(self):
-        """Create log output section"""
-        log_frame = ttk.LabelFrame(self.main_frame, text="Agent Log", padding="5")
-        log_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        """Create modern log section"""
+        log_frame = tk.Frame(self.main_frame, bg=COLORS['bg_secondary'],
+                            highlightbackground=COLORS['border'],
+                            highlightthickness=1)
+        log_frame.pack(fill=tk.X, pady=(20, 0))
         
-        self.log_text = scrolledtext.ScrolledText(log_frame, height=8, 
-                                                   font=('Consolas', 9),
-                                                   bg='#0a0a0a', fg='#00ff00',
-                                                   wrap=tk.WORD)
-        self.log_text.pack(fill=tk.BOTH, expand=True)
+        # Header
+        header = tk.Frame(log_frame, bg=COLORS['bg_tertiary'])
+        header.pack(fill=tk.X)
+        
+        icon = tk.Label(header, text="📋", font=('Segoe UI', 14),
+                       bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        icon.pack(side=tk.LEFT, padx=15, pady=8)
+        
+        title = tk.Label(header, text="Agent Log",
+                        font=('Segoe UI', 11, 'bold'),
+                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
+        title.pack(side=tk.LEFT)
+        
+        # Clear button
+        clear_btn = tk.Button(header, text="Clear",
+                             bg=COLORS['bg_tertiary'],
+                             fg=COLORS['text_secondary'],
+                             font=('Segoe UI', 9),
+                             relief='flat', cursor='hand2',
+                             padx=10, pady=2,
+                             command=self.clear_log)
+        clear_btn.pack(side=tk.RIGHT, padx=15)
+        
+        # Log text
+        self.log_text = scrolledtext.ScrolledText(
+            log_frame, height=8,
+            font=('Consolas', 10),
+            bg=COLORS['bg_secondary'],
+            fg=COLORS['text_secondary'],
+            relief='flat',
+            wrap=tk.WORD)
+        self.log_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         self.log_text.config(state=tk.DISABLED)
         
-        # Log scrollbar auto-scroll
-        self.log_text.bind('<Configure>', lambda e: self.log_text.see(tk.END))
+    def clear_log(self):
+        """Clear the log"""
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete(1.0, tk.END)
+        self.log_text.config(state=tk.DISABLED)
+        
+    def set_progress(self, percent):
+        """Set progress bar value (0-100)"""
+        width = self.progress_canvas.winfo_width()
+        fill_width = (percent / 100) * width
+        self.progress_canvas.coords(self.progress_fill, 0, 0, fill_width, 6)
         
     def show_login(self):
-        """Show login, hide dashboard"""
-        self.login_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        """Show login view"""
+        self.login_frame.place(relx=0.5, rely=0.45, anchor='center', width=500)
         self.dashboard_frame.grid_remove()
+        self.update_status("Disconnected", COLORS['text_secondary'])
         
     def show_dashboard(self):
-        """Show dashboard, hide login"""
-        self.login_frame.grid_remove()
-        self.dashboard_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.dashboard_frame.columnconfigure(0, weight=1)
-        self.dashboard_frame.columnconfigure(1, weight=2)
-        self.dashboard_frame.rowconfigure(0, weight=1)
+        """Show dashboard view"""
+        self.login_frame.place_forget()
+        self.dashboard_frame.pack(fill=tk.BOTH, expand=True)
+        self.update_status("Connected", COLORS['success'])
+        
+    def update_status(self, text, color):
+        """Update status indicator"""
+        self.status_text.config(text=text, fg=color)
+        self.status_dot.itemconfig('dot', fill=color)
         
     def log(self, message, tag="INFO"):
-        """Add message to log"""
+        """Add message to log with timestamp"""
         timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        # Color based on tag
+        color = COLORS['text_secondary']
+        if tag == "ERROR":
+            color = COLORS['danger']
+        elif tag == "SUCCESS":
+            color = COLORS['success']
+        elif tag == "WARN":
+            color = COLORS['warning']
+        elif tag == "INFO":
+            color = COLORS['accent']
+            
         self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, f"[{timestamp}] {tag}: {message}\n")
+        self.log_text.insert(tk.END, f"[{timestamp}] ", 'timestamp')
+        self.log_text.insert(tk.END, f"{tag:8} ", tag)
+        self.log_text.insert(tk.END, f"{message}\n")
+        
+        # Configure tags
+        self.log_text.tag_config('timestamp', foreground=COLORS['text_secondary'])
+        self.log_text.tag_config('INFO', foreground=COLORS['accent'])
+        self.log_text.tag_config('ERROR', foreground=COLORS['danger'])
+        self.log_text.tag_config('SUCCESS', foreground=COLORS['success'])
+        self.log_text.tag_config('WARN', foreground=COLORS['warning'])
+        
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
         
@@ -261,21 +597,26 @@ class RunCorAgentGUI:
         self.device_info_text.config(state=tk.NORMAL)
         self.device_info_text.delete(1.0, tk.END)
         
-        text = f"""Device ID: {info.get('device_id', 'N/A')}
-CPU: {info.get('cpu', 'N/A')}
-Cores: {info.get('cpu_cores', 'N/A')}
-RAM: {info.get('ram', 'N/A')} GB
+        text = f"""Device ID:    {info.get('device_id', 'N/A')}
+CPU:          {info.get('cpu', 'N/A')}
+Cores:        {info.get('cpu_cores', 'N/A')}
+RAM:          {info.get('ram', 'N/A')} GB
 """
         if info.get('gpu'):
-            text += f"GPU: {info.get('gpu')}\n"
+            text += f"GPU:          {info.get('gpu')}\n"
             if info.get('gpu_vram'):
-                text += f"VRAM: {info.get('gpu_vram')} GB\n"
+                text += f"GPU VRAM:     {info.get('gpu_vram')} GB\n"
         
-        text += f"OS: {info.get('os', 'N/A')}\n"
+        text += f"OS:           {info.get('os', 'N/A')}\n"
         text += f"Capabilities: {', '.join(info.get('capabilities', []))}\n"
         
         self.device_info_text.insert(tk.END, text)
         self.device_info_text.config(state=tk.DISABLED)
+        
+    def update_stats(self):
+        """Update statistics cards"""
+        self.jobs_card.config(text=str(self.jobs_completed))
+        self.earnings_card.config(text=f"${self.total_earned:.2f}")
         
     def on_login(self):
         """Handle login button click"""
@@ -293,8 +634,8 @@ RAM: {info.get('ram', 'N/A')} GB
         AUTH_CREDENTIALS = (username, password)
         
         self.log(f"Starting hardware detection for {username}...")
-        self.login_btn.config(state=tk.DISABLED)
-        self.hw_preview.config(text="Detecting hardware...")
+        self.login_btn.config(state=tk.DISABLED, text="Connecting...")
+        self.hw_preview.config(text="Detecting hardware...", fg=COLORS['accent'])
         
         # Run detection in background
         threading.Thread(target=self.detect_and_register, args=(username,), daemon=True).start()
@@ -308,8 +649,9 @@ RAM: {info.get('ram', 'N/A')} GB
             
             self.root.after(0, lambda: self.update_device_info(info))
             self.root.after(0, lambda: self.hw_preview.config(
-                text=f"Detected: {info['cpu']}\n{info['ram']}GB RAM" + 
-                     (f"\nGPU: {info['gpu']}" if info.get('gpu') else "")
+                text=f"✓ Detected: {info['cpu']} | {info['ram']}GB RAM" + 
+                     (f" | {info['gpu']}" if info.get('gpu') else ""),
+                fg=COLORS['success']
             ))
             
             # Register device
@@ -317,26 +659,32 @@ RAM: {info.get('ram', 'N/A')} GB
             success = self.register_device(info, username)
             
             if success:
+                self.log("Device registered successfully!", "SUCCESS")
                 self.root.after(0, self.on_registration_success)
             else:
+                self.log("Registration failed - check credentials", "ERROR")
                 self.root.after(0, lambda: messagebox.showerror(
                     "Registration Failed", 
                     "Could not register device. Check credentials and try again."
                 ))
-                self.root.after(0, lambda: self.login_btn.config(state=tk.NORMAL))
+                self.root.after(0, lambda: self.reset_login_button())
                 
         except Exception as e:
             self.log(f"Error: {str(e)}", "ERROR")
             self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
-            self.root.after(0, lambda: self.login_btn.config(state=tk.NORMAL))
+            self.root.after(0, lambda: self.reset_login_button())
+            
+    def reset_login_button(self):
+        """Reset login button state"""
+        self.login_btn.config(state=tk.NORMAL, text="Connect Device")
+        self.hw_preview.config(text="Ready to detect hardware", fg=COLORS['text_secondary'])
             
     def on_registration_success(self):
         """Called when registration is successful"""
         self.logged_in = True
         self.device_registered = True
-        self.status_var.set("Connected - Active")
-        self.status_label.config(foreground='green')
         self.show_dashboard()
+        self.log("Agent is now active and waiting for jobs", "SUCCESS")
         
         # Start worker threads
         self.start_workers()
@@ -347,54 +695,44 @@ RAM: {info.get('ram', 'N/A')} GB
         
         # CPU
         try:
-            result = subprocess.run(['wmic', 'cpu', 'get', 'Name', '/format:csv'], 
+            result = subprocess.run(['wmic', 'cpu', 'get', 'Name', '/format:csv'],
                                   capture_output=True, text=True)
-            lines = result.stdout.strip().split('\n')
-            for line in lines:
+            for line in result.stdout.split('\n'):
                 if 'Intel' in line or 'AMD' in line:
                     parts = line.split(',')
                     if len(parts) >= 2:
-                        info['cpu'] = parts[-1].strip()  # Last part is the name
+                        info['cpu'] = parts[1].strip()
                         break
-            if 'cpu' not in info:
-                info['cpu'] = platform.processor() or "Unknown CPU"
         except:
-            info['cpu'] = platform.processor() or "Unknown CPU"
+            info['cpu'] = platform.processor() or "Unknown"
             
-        # Cores
+        # CPU Cores
         try:
             result = subprocess.run(['wmic', 'cpu', 'get', 'NumberOfCores', '/format:csv'],
                                   capture_output=True, text=True)
             for line in result.stdout.split('\n'):
-                parts = line.strip().split(',')
-                if len(parts) >= 2:
-                    # Last part should be the number
-                    try:
-                        info['cpu_cores'] = int(parts[-1])
-                        break
-                    except:
-                        continue
+                if line.strip().isdigit():
+                    info['cpu_cores'] = int(line.strip())
+                    break
             if 'cpu_cores' not in info:
-                info['cpu_cores'] = 4
+                info['cpu_cores'] = os.cpu_count() or 4
         except:
-            info['cpu_cores'] = 4
+            info['cpu_cores'] = os.cpu_count() or 4
             
         # RAM
         try:
-            result = subprocess.run(['wmic', 'computersystem', 'get', 'TotalPhysicalMemory', '/format:csv'],
+            result = subprocess.run(['wmic', 'computerSystem', 'get', 'TotalPhysicalMemory', '/format:csv'],
                                   capture_output=True, text=True)
             for line in result.stdout.split('\n'):
-                parts = line.strip().split(',')
-                if len(parts) >= 2:
-                    try:
-                        info['ram'] = round(int(parts[-1]) / (1024**3))
-                        break
-                    except:
-                        continue
+                parts = line.split(',')
+                if len(parts) >= 2 and parts[-1].strip().isdigit():
+                    ram_bytes = int(parts[-1].strip())
+                    info['ram'] = round(ram_bytes / (1024**3))
+                    break
             if 'ram' not in info:
-                info['ram'] = 16
+                info['ram'] = 8
         except:
-            info['ram'] = 16
+            info['ram'] = 8
             
         # GPU
         info['gpu'] = None
@@ -426,6 +764,7 @@ RAM: {info.get('ram', 'N/A')} GB
             import random
             info['device_id'] = f"0x{random.randint(10000000, 99999999)}{random.randint(10000000, 99999999)}"
             
+        info['os'] = f"Windows {platform.release()}"
         info['architecture'] = 'amd64'
         info['capabilities'] = ['cpu_compute', 'windows']
         if info['gpu']:
@@ -439,13 +778,14 @@ RAM: {info.get('ram', 'N/A')} GB
         return info
         
     def api_request(self, method, endpoint, data=None):
-        """Make API request"""
-        # Add username to query params for GET requests (agent authentication)
+        """Make API request with detailed logging"""
         url = f"{API_URL}{endpoint}"
         if method == "GET" and USERNAME and "?" not in endpoint:
             url += f"?username={USERNAME}"
         elif method == "GET" and USERNAME and "?" in endpoint:
             url += f"&username={USERNAME}"
+        
+        self.log(f"API {method} {endpoint}")
         
         try:
             headers = {'Content-Type': 'application/json'}
@@ -456,7 +796,15 @@ RAM: {info.get('ram', 'N/A')} GB
             req = urllib.request.Request(url, data=request_data, headers=headers, method=method)
                 
             with urllib.request.urlopen(req, timeout=30) as response:
-                return json.loads(response.read().decode('utf-8'))
+                response_data = response.read().decode('utf-8')
+                return json.loads(response_data)
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8') if e.read() else "No details"
+            self.log(f"HTTP {e.code}: {e.reason}", "ERROR")
+            return None
+        except urllib.error.URLError as e:
+            self.log(f"Connection failed: {e.reason}", "ERROR")
+            return None
         except Exception as e:
             self.log(f"API error: {e}", "ERROR")
             return None
@@ -498,291 +846,273 @@ RAM: {info.get('ram', 'N/A')} GB
         
     def start_workers(self):
         """Start background worker threads"""
-        global STOP_EVENT, GUI_OPEN
         STOP_EVENT.clear()
-        GUI_OPEN = True
         
-        # Start job worker
+        # Job polling thread
         self.worker_thread = threading.Thread(target=self.job_worker, daemon=True)
         self.worker_thread.start()
         
-        # Start heartbeat
+        # Heartbeat thread
         self.heartbeat_thread = threading.Thread(target=self.heartbeat_worker, daemon=True)
         self.heartbeat_thread.start()
         
-        self.log("Workers started - Agent is active")
-        
-    def stop_workers(self):
-        """Stop background workers"""
-        global STOP_EVENT, GUI_OPEN
-        STOP_EVENT.set()
-        GUI_OPEN = False
-        
-        # Mark device as offline
-        if DEVICE_ID:
-            self.api_request("POST", "/api/devices", {
-                "deviceId": DEVICE_ID,
-                "status": {
-                    "jobStatus": "offline"
-                }
-            })
-            
-        self.log("Workers stopped - Device marked offline")
-        
     def job_worker(self):
-        """Main job polling worker"""
-        global CURRENT_JOB
-        
-        self.log("Job worker started")
-        
+        """Background thread to poll for jobs"""
         while not STOP_EVENT.is_set():
             try:
-                if CURRENT_JOB is None:
-                    # Poll for assigned jobs
-                    result = self.api_request("GET", f"/api/jobs?device_id={DEVICE_ID}&status=claimed")
-                    
-                    if result and isinstance(result, list) and len(result) > 0:
-                        job = result[0]
-                        CURRENT_JOB = job
-                        self.root.after(0, lambda j=job: self.on_job_assigned(j))
-                        self.execute_job(job)
-                        
-                STOP_EVENT.wait(POLL_INTERVAL)
+                if not self.paused and not self.estopped:
+                    self.poll_and_execute_jobs()
+                time.sleep(POLL_INTERVAL)
             except Exception as e:
                 self.log(f"Worker error: {e}", "ERROR")
-                STOP_EVENT.wait(POLL_INTERVAL)
+                time.sleep(5)
                 
-    def on_job_assigned(self, job):
-        """Called when a job is assigned"""
-        self.job_status_var.set(f"Executing: {job['title']}")
-        self.progress.start()
-        self.job_details.delete(1.0, tk.END)
-        self.job_details.insert(tk.END, f"Job: {job['title']}\n")
-        self.job_details.insert(tk.END, f"Type: {job.get('type', 'unknown')}\n")
-        self.job_details.insert(tk.END, f"Reward: ${job.get('reward', 0)}\n\n")
+    def heartbeat_worker(self):
+        """Send periodic heartbeat"""
+        while not STOP_EVENT.is_set():
+            try:
+                self.send_heartbeat()
+                time.sleep(30)
+            except Exception as e:
+                time.sleep(10)
+                
+    def send_heartbeat(self):
+        """Update device heartbeat"""
+        if not DEVICE_ID:
+            return
+            
+        import psutil
+        
+        payload = {
+            "deviceId": DEVICE_ID,
+            "status": {
+                "cpuLoadPercent": psutil.cpu_percent(),
+                "ramUsedPercent": psutil.virtual_memory().percent,
+                "jobStatus": "busy" if CURRENT_JOB else "idle",
+                "uptimeSeconds": int(time.time() - self.start_time) if hasattr(self, 'start_time') else 0
+            },
+            "currentJob": CURRENT_JOB
+        }
+        
+        self.api_request("POST", "/api/devices", payload)
+        
+    def poll_and_execute_jobs(self):
+        """Check for and execute pending jobs"""
+        global CURRENT_JOB
+        
+        # Get available jobs
+        jobs = self.api_request("GET", "/api/jobs")
+        if not jobs or not isinstance(jobs, list):
+            return
+            
+        # Find first available job
+        available = [j for j in jobs if j.get('status') == 'pending' and 
+                     not j.get('claimedBy')]
+        
+        if not available:
+            return
+            
+        job = available[0]
+        job_id = job.get('_id') or job.get('id')
+        
+        # Claim the job
+        self.log(f"Claiming job {job_id[:8]}...")
+        claim_result = self.api_request("PATCH", f"/api/jobs/{job_id}", {
+            "action": "claim",
+            "claimedBy": USERNAME
+        })
+        
+        if not claim_result:
+            return
+            
+        CURRENT_JOB = job_id
+        self.root.after(0, lambda: self.job_status_var.set(f"Executing: {job.get('title', 'Job')}"))
+        self.root.after(0, lambda: self.job_status_card.config(text="Running", fg=COLORS['accent']))
+        self.root.after(0, lambda: self.set_progress(10))
+        
+        # Execute the job
+        success = self.execute_job(job)
+        
+        # Mark complete
+        actual_hash = None
+        if success and job.get('deterministic'):
+            # Compute hash of output
+            work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
+            actual_hash = self.hash_directory(work_dir)
+            
+        completion_data = {"status": "completed" if success else "failed"}
+        if actual_hash:
+            completion_data["actualOutputHash"] = actual_hash
+            
+        self.api_request("PATCH", f"/api/jobs/{job_id}", completion_data)
+        
+        CURRENT_JOB = None
+        if success:
+            self.jobs_completed += 1
+            reward = job.get('reward', 0)
+            self.total_earned += reward
+            self.root.after(0, self.update_stats)
+            self.log(f"Job completed! Earned ${reward:.2f}", "SUCCESS")
+        
+        self.root.after(0, lambda: self.job_status_var.set("Waiting for jobs..."))
+        self.root.after(0, lambda: self.job_status_card.config(text="Idle", fg=COLORS['text_secondary']))
+        self.root.after(0, lambda: self.set_progress(0))
         
     def execute_job(self, job):
         """Execute a job"""
-        global CURRENT_JOB
-        
-        job_id = job['_id']
-        self.log(f"Starting job: {job['title']}")
-        
-        # Update status to running
-        self.update_job_status(job_id, "running", logs=["Job started"])
-        
-        work_dir = None
         try:
-            # Create working directory
-            work_dir = tempfile.mkdtemp(prefix=f"runcor_{job_id}_")
+            job_id = job.get('_id') or job.get('id')
+            job_type = job.get('type', 'python')
+            script = job.get('script', '')
             
-            # Update UI
-            self.root.after(0, lambda: self.job_details.insert(tk.END, f"Working directory: {work_dir}\n"))
+            # Create work directory
+            work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
+            os.makedirs(work_dir, exist_ok=True)
             
-            # Download input file if specified (for deterministic jobs)
-            if job.get('inputFileUrl'):
-                self.log(f"Downloading input file from {job['inputFileUrl']}")
-                import urllib.request
-                input_path = os.path.join(work_dir, "input.dat")
-                urllib.request.urlretrieve(job['inputFileUrl'], input_path)
-                self.root.after(0, lambda: self.job_details.insert(tk.END, "Input file downloaded\n"))
+            self.log(f"Working in: {work_dir}")
+            self.root.after(0, lambda: self.job_details.delete(1.0, tk.END))
+            self.root.after(0, lambda: self.job_details.insert(tk.END, f"Job: {job.get('title')}\nType: {job_type}\nWork Dir: {work_dir}\n\nExecuting...\n"))
             
-            # Execute script if provided
-            if job.get('script'):
-                script_path = os.path.join(work_dir, "script.py")
-                with open(script_path, 'w') as f:
-                    f.write(job['script'])
-                
-                self.root.after(0, lambda: self.job_details.insert(tk.END, "Executing script...\n"))
-                
-                # Run the script
+            # Write script
+            if job_type == 'python':
+                script_file = os.path.join(work_dir, "job.py")
+                with open(script_file, 'w') as f:
+                    f.write(script)
+                    
+                # Execute
+                self.root.after(0, lambda: self.set_progress(30))
                 result = subprocess.run(
-                    [sys.executable, script_path],
+                    [sys.executable, script_file],
                     cwd=work_dir,
                     capture_output=True,
                     text=True,
-                    timeout=300  # 5 minute timeout
+                    timeout=300
+                )
+                self.root.after(0, lambda: self.set_progress(80))
+                
+            elif job_type == 'powershell':
+                script_file = os.path.join(work_dir, "job.ps1")
+                with open(script_file, 'w') as f:
+                    f.write(script)
+                    
+                result = subprocess.run(
+                    ['powershell', '-ExecutionPolicy', 'Bypass', '-File', script_file],
+                    cwd=work_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
                 )
                 
-                # Log output
-                if result.stdout:
-                    for line in result.stdout.split('\n'):
-                        if line.strip():
-                            self.root.after(0, lambda l=line: self.job_details.insert(tk.END, f"> {l}\n"))
-                
-                if result.returncode != 0:
-                    raise Exception(f"Script failed: {result.stderr}")
-            else:
-                # Simulate work for demo
-                for i in range(10):
-                    if STOP_EVENT.is_set():
-                        raise Exception("Job cancelled")
-                    time.sleep(0.5)
-                    self.root.after(0, lambda i=i: self.job_details.insert(tk.END, f"Step {i+1}/10 complete\n"))
-                
-                # Create a dummy output file for demonstration
-                output_file = os.path.join(work_dir, "output.json")
-                with open(output_file, 'w') as f:
-                    json.dump({"status": "success", "job_id": job_id}, f)
+            # Show output
+            output = result.stdout + "\n" + result.stderr
+            self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nOutput:\n{output[:1000]}"))
+            self.root.after(0, lambda: self.set_progress(100))
             
-            # Compute output hash for verification
-            output_hash = None
-            if job.get('expectedOutputHash'):
-                self.log("Computing output hash for verification...")
-                
-                # Look for output files
-                output_files = [f for f in os.listdir(work_dir) if f.startswith('output')]
-                if output_files:
-                    # Hash the first output file found
-                    output_path = os.path.join(work_dir, output_files[0])
-                    output_hash = self.hash_file(output_path)
-                    self.log(f"Output hash: {output_hash}")
-                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nOutput hash: {output_hash}\n"))
-                else:
-                    # Hash entire directory
-                    output_hash = self.hash_directory(work_dir)
-                    self.log(f"Directory hash: {output_hash}")
-                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nDirectory hash: {output_hash}\n"))
-                
-                # Verify against expected hash
-                expected = job['expectedOutputHash'].lower()
-                actual = output_hash.lower()
-                if expected == actual:
-                    self.log("✓ Hash verification PASSED", "SUCCESS")
-                    self.root.after(0, lambda: self.job_details.insert(tk.END, "\n✓ Verification PASSED\n"))
-                else:
-                    self.log("✗ Hash verification FAILED - payment will be held", "WARNING")
-                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\n✗ Verification FAILED\nExpected: {expected}\nActual: {actual}\n"))
+            return result.returncode == 0
             
-            # Mark completed with hash
-            self.update_job_status(job_id, "completed", 
-                                 logs=["Job completed successfully"],
-                                 result={"status": "success", "work_dir": work_dir},
-                                 actual_output_hash=output_hash)
-            
-            self.log(f"Job completed: {job['title']}", "SUCCESS")
-            self.root.after(0, self.on_job_completed)
-            
+        except subprocess.TimeoutExpired:
+            self.log("Job timed out", "ERROR")
+            return False
         except Exception as e:
-            self.update_job_status(job_id, "failed", error=str(e))
-            self.log(f"Job failed: {e}", "ERROR")
-            self.root.after(0, lambda: self.job_status_var.set("Job failed"))
+            self.log(f"Job execution failed: {e}", "ERROR")
+            return False
             
-        finally:
-            # Don't delete work_dir immediately so user can inspect if needed
-            # shutil.rmtree(work_dir, ignore_errors=True)
-            CURRENT_JOB = None
-            self.root.after(0, self.progress.stop)
-            
-    def on_job_completed(self):
-        """Called when job completes"""
-        self.job_status_var.set("Waiting for jobs...")
-        self.job_details.insert(tk.END, "\n✓ Job completed successfully!")
-        
-        # Update stats
-        current_jobs = int(self.jobs_completed_var.get().split(':')[1].strip())
-        self.jobs_completed_var.set(f"Jobs: {current_jobs + 1}")
-        
     def hash_file(self, filepath):
         """Compute SHA256 hash of a file"""
         sha256 = hashlib.sha256()
-        with open(filepath, 'rb') as f:
-            for chunk in iter(lambda: f.read(8192), b''):
-                sha256.update(chunk)
-        return f"sha256:{sha256.hexdigest()}"
-    
-    def hash_directory(self, directory):
-        """Compute combined SHA256 hash of all files in directory"""
-        sha256 = hashlib.sha256()
-        for root, dirs, files in os.walk(directory):
-            for filename in sorted(files):  # Sort for deterministic ordering
-                filepath = os.path.join(root, filename)
-                # Add filename to hash
-                sha256.update(filename.encode())
-                # Add file content to hash
-                with open(filepath, 'rb') as f:
-                    for chunk in iter(lambda: f.read(8192), b''):
-                        sha256.update(chunk)
-        return f"sha256:{sha256.hexdigest()}"
-    
-    def update_job_status(self, job_id, status, logs=None, result=None, error=None, actual_output_hash=None):
-        """Update job status via API"""
-        payload = {
-            "jobId": job_id,
-            "deviceId": DEVICE_ID,
-            "status": status
-        }
-        if logs:
-            payload["logs"] = logs
-        if result:
-            payload["result"] = result
-        if error:
-            payload["error"] = error
-        if actual_output_hash:
-            payload["actualOutputHash"] = actual_output_hash
+        try:
+            with open(filepath, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    sha256.update(chunk)
+            return f"sha256:{sha256.hexdigest()}"
+        except:
+            return None
             
-        return self.api_request("PATCH", "/api/jobs", payload)
-        
-    def heartbeat_worker(self):
-        """Send periodic heartbeat to keep device online"""
-        while not STOP_EVENT.is_set():
-            try:
-                if DEVICE_ID and GUI_OPEN:
-                    # Get system stats
-                    try:
-                        import psutil
-                        cpu = psutil.cpu_percent(interval=1)
-                        ram = psutil.virtual_memory().percent
-                    except:
-                        cpu = 0
-                        ram = 0
-                        
-                    self.api_request("POST", "/api/devices", {
-                        "deviceId": DEVICE_ID,
-                        "status": {
-                            "cpuLoadPercent": cpu,
-                            "ramUsedPercent": ram,
-                            "jobStatus": "busy" if CURRENT_JOB else "idle",
-                            "uptimeSeconds": 0
-                        },
-                        "currentJob": CURRENT_JOB['_id'] if CURRENT_JOB else None
-                    })
-                    
-            except Exception as e:
-                pass
-                
-            STOP_EVENT.wait(30)  # Update every 30 seconds
+    def hash_directory(self, directory):
+        """Compute combined hash of all files in directory"""
+        hashes = []
+        try:
+            for root, dirs, files in os.walk(directory):
+                for filename in sorted(files):
+                    filepath = os.path.join(root, filename)
+                    file_hash = self.hash_file(filepath)
+                    if file_hash:
+                        hashes.append(file_hash)
+            
+            # Combine hashes
+            combined = hashlib.sha256()
+            for h in sorted(hashes):
+                combined.update(h.encode())
+            return f"sha256:{combined.hexdigest()}"
+        except:
+            return None
             
     def toggle_pause(self):
-        """Toggle pause state"""
-        # Implementation for pause/resume
-        messagebox.showinfo("Info", "Pause/Resume functionality to be implemented")
-        
+        """Pause/resume job processing"""
+        if not hasattr(self, 'paused'):
+            self.paused = False
+            
+        self.paused = not self.paused
+        if self.paused:
+            self.pause_btn.config(text="▶ Resume", bg=COLORS['success'])
+            self.log("Agent paused - will not accept new jobs", "WARN")
+            self.job_status_card.config(text="Paused", fg=COLORS['warning'])
+        else:
+            self.pause_btn.config(text="⏸ Pause", bg=COLORS['bg_tertiary'])
+            self.log("Agent resumed")
+            self.job_status_card.config(text="Idle", fg=COLORS['text_secondary'])
+            
     def trigger_estop(self):
-        """Trigger emergency stop"""
-        if messagebox.askyesno("E-STOP", "Stop all operations immediately?"):
-            STOP_EVENT.set()
-            self.log("E-STOP triggered", "WARNING")
-            self.status_var.set("EMERGENCY STOP")
-            self.status_label.config(foreground='red')
+        """Emergency stop"""
+        if messagebox.askyesno("EMERGENCY STOP", "This will immediately stop the current job.\n\nAre you sure?"):
+            self.estopped = True
+            self.log("EMERGENCY STOP TRIGGERED", "ERROR")
+            self.job_status_card.config(text="E-STOPPED", fg=COLORS['danger'])
+            # Kill current job process if running
+            # (Implementation depends on how job is tracked)
             
     def disconnect(self):
-        """Disconnect device"""
-        self.stop_workers()
-        self.logged_in = False
-        self.status_var.set("Disconnected")
-        self.status_label.config(foreground='gray')
-        self.show_login()
-        
+        """Disconnect from server"""
+        if messagebox.askyesno("Disconnect", "Stop the agent and return to login?"):
+            STOP_EVENT.set()
+            self.log("Disconnecting...")
+            
+            # Unregister device
+            if DEVICE_ID:
+                self.api_request("DELETE", f"/api/devices?id={DEVICE_ID}")
+                
+            self.logged_in = False
+            self.device_registered = False
+            self.show_login()
+            self.reset_login_button()
+            
     def on_closing(self):
         """Handle window close"""
-        if messagebox.askokcancel("Quit", "Close RunCor Agent?\n\nYour device will be marked offline."):
-            self.stop_workers()
-            self.root.destroy()
-            
+        global GUI_OPEN
+        GUI_OPEN = False
+        STOP_EVENT.set()
+        
+        # Unregister device
+        if DEVICE_ID and self.logged_in:
+            try:
+                self.api_request("DELETE", f"/api/devices?id={DEVICE_ID}")
+            except:
+                pass
+                
+        self.root.destroy()
+        
 def main():
     root = tk.Tk()
+    
+    # Set DPI awareness for crisp rendering on Windows
+    try:
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(1)
+    except:
+        pass
+    
     app = RunCorAgentGUI(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()
     
 if __name__ == "__main__":

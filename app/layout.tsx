@@ -19,15 +19,23 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://runcor.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://runcor.io"),
   title: "RunCor | Universal Device Autonomy Network",
   description: "The operating system for machine-to-machine commerce. Turn your GPU, CNC, or Drone into an autonomous entity that works while you sleep.",
   keywords: ["autonomous devices", "machine-to-machine commerce", "GPU servers", "CNC machines", "drones", "edge computing", "IoT"],
   authors: [{ name: "RunCor" }],
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "512x512" },
+      { url: "/runcor-logo-512px.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/runcor-logo-512px.png",
+  },
   openGraph: {
     title: "RunCor | Universal Device Autonomy Network",
     description: "The operating system for machine-to-machine commerce. Turn your GPU, CNC, or Drone into an autonomous entity that works while you sleep.",
-    url: "https://runcor.com",
+    url: "https://runcor.io",
     siteName: "RunCor",
     images: [
       {
