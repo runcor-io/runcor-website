@@ -64,6 +64,9 @@ class RunCorAgentGUI:
         self.heartbeat_thread = None
         self.jobs_completed = 0
         self.total_earned = 0.0
+        self.paused = False
+        self.estopped = False
+        self.start_time = time.time()
         
         # Create widgets
         self.create_styles()
