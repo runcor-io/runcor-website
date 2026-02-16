@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Wifi,
   WifiOff,
+  Shield,
 } from "lucide-react";
 
 interface Job {
@@ -35,6 +36,12 @@ interface Job {
   logs: string[];
   error?: string;
   result?: any;
+  // Verification fields
+  deterministic?: boolean;
+  expectedOutputHash?: string;
+  actualOutputHash?: string;
+  verificationStatus?: "pending" | "verified" | "failed" | "manual_review" | null;
+  inputFileUrl?: string;
 }
 
 const filters = ["All", "Posted by Me", "Claimed by Me", "Pending", "Running", "Completed", "Failed"];
@@ -508,6 +515,55 @@ export default function JobMonitor() {
                               </div>
                             )}
                           </div>
+
+                          {/* Verification Status (for deterministic jobs) */}
+                          {job.expectedOutputHash && (
+                            <div className="pb-3 border-b border-zinc-800">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Shield className="w-4 h-4 text-emerald-400" />
+                                <span className="text-sm font-medium text-white">Deterministic Verification</span>
+                                {job.verificationStatus === 'verified' && (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
+                                    ✓ Verified
+                                  </span>
+                                )}
+                                {job.verificationStatus === 'failed' && (
+                                  <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 text-xs">
+                                    ✗ Failed
+                                  </span>
+                                )}
+                                {job.verificationStatus === 'pending' && (
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-xs">
+                                    ⏳ Pending
+                                  </span>
+                                )}
+                                {job.verificationStatus === 'manual_review' && (
+                                  <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 text-xs">
+                                    🔍 Manual Review
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 gap-2 text-xs">
+                                <div>
+                                  <span className="text-zinc-500">Expected Hash:</span>
+                                  <span className="ml-2 font-mono text-zinc-400">{job.expectedOutputHash}</span>
+                                </div>
+                                {job.actualOutputHash && (
+                                  <div>
+                                    <span className="text-zinc-500">Actual Hash:</span>
+                                    <span className={`ml-2 font-mono ${job.verificationStatus === 'failed' ? 'text-red-400' : 'text-zinc-400'}`}>
+                                      {job.actualOutputHash}
+                                    </span>
+                                  </div>
+                                )}
+                                {job.verificationStatus === 'failed' && (
+                                  <div className="p-2 rounded bg-red-500/10 border border-red-500/30 text-red-400">
+                                    ⚠️ Hash mismatch detected. Payment held pending manual review.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           
                           <div className="flex items-center gap-2 text-sm text-zinc-400">
                             <Terminal className="w-4 h-4" />

@@ -135,13 +135,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new job (called by contractor)
-    const { title, type, script, scriptUrl, postedBy, reward, requiredCapabilities } = body;
+    const { title, type, script, scriptUrl, postedBy, reward, requiredCapabilities, expectedOutputHash, inputFileUrl, deterministic } = body;
 
     if (!title || !type || !postedBy) {
       return NextResponse.json(
         { error: "title, type, and postedBy are required" },
         { status: 400 }
       );
+    }
+
+    // Validate expected output hash if provided
+    if (expectedOutputHash) {
+      const hashRegex = /^sha256:[a-f0-9]{64}$/i;
+      if (!hashRegex.test(expectedOutputHash)) {
+        return NextResponse.json(
+          { error: "Invalid expected_output_hash format. Must be sha256: followed by 64 hex characters" },
+          { status: 400 }
+        );
+      }
     }
 
     const jobReward = reward || 0;
@@ -188,6 +199,12 @@ export async function POST(request: NextRequest) {
       completedAt: null,
       result: null,
       logs: [],
+      // Verification fields
+      deterministic: deterministic || false,
+      expectedOutputHash: expectedOutputHash || null,
+      actualOutputHash: null,
+      verificationStatus: expectedOutputHash ? "pending" : null, // "pending", "verified", "failed", "manual_review"
+      inputFileUrl: inputFileUrl || null,
     };
 
     const result = await jobs.insertOne(job);
@@ -208,9 +225,9 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { jobId, status, deviceId, logs, result, error: jobError } = body;
+    const { jobId, status, deviceId, logs, result, error: jobError, actualOutputHash } = body;
 
-    console.log("[Jobs API] PATCH request:", { jobId, status, deviceId });
+    console.log("[Jobs API] PATCH request:", { jobId, status, deviceId, actualOutputHash });
 
     if (!jobId || !status) {
       return NextResponse.json(
@@ -251,8 +268,58 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Job not found or not owned by device" }, { status: 404 });
     }
 
-    // If job completed successfully, pay the claimer
-    if (status === "completed" && existingJob && existingJob.claimedBy && existingJob.reward > 0) {
+    // Handle deterministic job verification
+    let verificationResult = null;
+    if (status === "completed" && existingJob && existingJob.expectedOutputHash) {
+      // Store actual hash
+      await jobs.updateOne(
+        { _id: new ObjectId(jobId) },
+        { $set: { actualOutputHash: actualOutputHash || null } }
+      );
+
+      // Verify hash
+      if (actualOutputHash) {
+        const expectedHash = existingJob.expectedOutputHash.toLowerCase();
+        const actualHash = actualOutputHash.toLowerCase();
+        
+        if (expectedHash === actualHash) {
+          // Hash matches - verified
+          await jobs.updateOne(
+            { _id: new ObjectId(jobId) },
+            { $set: { verificationStatus: "verified" } }
+          );
+          verificationResult = { status: "verified", matched: true };
+          console.log("[Jobs API] Hash verification PASSED for job", jobId);
+        } else {
+          // Hash mismatch - failed
+          await jobs.updateOne(
+            { _id: new ObjectId(jobId) },
+            { $set: { verificationStatus: "failed" } }
+          );
+          verificationResult = { status: "failed", matched: false, expected: expectedHash, actual: actualHash };
+          console.log("[Jobs API] Hash verification FAILED for job", jobId);
+          console.log("[Jobs API] Expected:", expectedHash);
+          console.log("[Jobs API] Actual:", actualHash);
+        }
+      } else {
+        // No hash provided but expected
+        await jobs.updateOne(
+          { _id: new ObjectId(jobId) },
+          { $set: { verificationStatus: "manual_review" } }
+        );
+        verificationResult = { status: "manual_review", reason: "No output hash provided" };
+        console.log("[Jobs API] No hash provided for deterministic job", jobId);
+      }
+    }
+
+    // If job completed successfully AND (not deterministic OR verification passed), pay the claimer
+    const shouldPay = status === "completed" && 
+                      existingJob && 
+                      existingJob.claimedBy && 
+                      existingJob.reward > 0 &&
+                      (!existingJob.expectedOutputHash || verificationResult?.status === "verified");
+
+    if (shouldPay) {
       try {
         await recordTransaction(
           existingJob.claimedBy,
@@ -266,10 +333,12 @@ export async function PATCH(request: NextRequest) {
         console.error("[Jobs API] Failed to record payment:", err);
         // Don't fail the job completion if payment fails - we'll handle it manually
       }
+    } else if (status === "completed" && existingJob?.expectedOutputHash && verificationResult?.status !== "verified") {
+      console.log("[Jobs API] Payment HELD for job", jobId, "- verification", verificationResult?.status);
     }
 
-    console.log("[Jobs API] Job updated successfully:", job._id, "status:", job.status);
-    return NextResponse.json({ success: true, job });
+    console.log("[Jobs API] Job updated successfully:", job._id, "status:", job.status, "verification:", verificationResult?.status || "n/a");
+    return NextResponse.json({ success: true, job, verification: verificationResult });
   } catch (err) {
     console.error("Error updating job:", err);
     return NextResponse.json({ error: "Failed to update job" }, { status: 500 });

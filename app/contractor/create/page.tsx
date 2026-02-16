@@ -12,7 +12,10 @@ import {
   Code,
   CheckCircle,
   AlertCircle,
-  Wallet
+  Wallet,
+  Shield,
+  Hash,
+  FileInput
 } from "lucide-react";
 
 export default function CreateJobPage() {
@@ -37,6 +40,9 @@ export default function CreateJobPage() {
   }, []);
   const [title, setTitle] = useState("");
   const [type, setType] = useState("python");
+  const [deterministic, setDeterministic] = useState(false);
+  const [expectedOutputHash, setExpectedOutputHash] = useState("");
+  const [inputFileUrl, setInputFileUrl] = useState("");
   const [script, setScript] = useState(`#!/usr/bin/env python3
 """
 Example job script - Modify this for your task
@@ -96,7 +102,10 @@ print(f"Result: {result}")
           script,
           postedBy: username,
           reward: parseFloat(reward) || 0,
-          requiredCapabilities
+          requiredCapabilities,
+          deterministic,
+          expectedOutputHash: deterministic ? expectedOutputHash : null,
+          inputFileUrl: deterministic ? inputFileUrl : null,
         })
       });
 
@@ -105,12 +114,17 @@ print(f"Result: {result}")
       if (data.success) {
         setResult({
           success: true,
-          message: "Job created successfully!",
+          message: deterministic 
+            ? "Deterministic job created! Payment will only be released if output hash matches." 
+            : "Job created successfully!",
           jobId: data.jobId
         });
         // Reset form
         setTitle("");
         setScript("");
+        setDeterministic(false);
+        setExpectedOutputHash("");
+        setInputFileUrl("");
       } else {
         setResult({
           success: false,
@@ -225,6 +239,64 @@ print(f"Result: {result}")
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Deterministic Job Verification */}
+            <div className="border border-zinc-800 rounded-lg p-4 bg-zinc-900/50">
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-sm font-medium text-white">Deterministic Verification</h3>
+                  <p className="text-xs text-zinc-500">Verify job output matches expected hash before payment</p>
+                </div>
+                <label className="ml-auto relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deterministic}
+                    onChange={(e) => setDeterministic(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              {deterministic && (
+                <div className="space-y-4 pt-4 border-t border-zinc-800">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">
+                      <Hash className="w-4 h-4 inline mr-1" />
+                      Expected Output Hash (SHA256)
+                    </label>
+                    <input
+                      type="text"
+                      value={expectedOutputHash}
+                      onChange={(e) => setExpectedOutputHash(e.target.value)}
+                      placeholder="sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                      className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 font-mono text-sm"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Format: sha256: followed by 64 hex characters. Payment only released if output matches.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">
+                      <FileInput className="w-4 h-4 inline mr-1" />
+                      Input File URL (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={inputFileUrl}
+                      onChange={(e) => setInputFileUrl(e.target.value)}
+                      placeholder="https://example.com/input-data.zip"
+                      className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">
+                      URL to input data that will be downloaded before job execution
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

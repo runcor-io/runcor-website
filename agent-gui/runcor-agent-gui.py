@@ -17,6 +17,7 @@ import time
 import threading
 import tempfile
 import shutil
+import hashlib
 from pathlib import Path
 from datetime import datetime
 
@@ -565,24 +566,94 @@ RAM: {info.get('ram', 'N/A')} GB
         # Update status to running
         self.update_job_status(job_id, "running", logs=["Job started"])
         
+        work_dir = None
         try:
-            # Simulate job execution (replace with actual job execution)
+            # Create working directory
             work_dir = tempfile.mkdtemp(prefix=f"runcor_{job_id}_")
             
             # Update UI
-            self.root.after(0, lambda: self.job_details.insert(tk.END, "Executing...\n"))
+            self.root.after(0, lambda: self.job_details.insert(tk.END, f"Working directory: {work_dir}\n"))
             
-            # Simulate work
-            for i in range(10):
-                if STOP_EVENT.is_set():
-                    raise Exception("Job cancelled")
-                time.sleep(1)
-                self.root.after(0, lambda i=i: self.job_details.insert(tk.END, f"Step {i+1}/10 complete\n"))
+            # Download input file if specified (for deterministic jobs)
+            if job.get('inputFileUrl'):
+                self.log(f"Downloading input file from {job['inputFileUrl']}")
+                import urllib.request
+                input_path = os.path.join(work_dir, "input.dat")
+                urllib.request.urlretrieve(job['inputFileUrl'], input_path)
+                self.root.after(0, lambda: self.job_details.insert(tk.END, "Input file downloaded\n"))
+            
+            # Execute script if provided
+            if job.get('script'):
+                script_path = os.path.join(work_dir, "script.py")
+                with open(script_path, 'w') as f:
+                    f.write(job['script'])
                 
-            # Mark completed
+                self.root.after(0, lambda: self.job_details.insert(tk.END, "Executing script...\n"))
+                
+                # Run the script
+                result = subprocess.run(
+                    [sys.executable, script_path],
+                    cwd=work_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minute timeout
+                )
+                
+                # Log output
+                if result.stdout:
+                    for line in result.stdout.split('\n'):
+                        if line.strip():
+                            self.root.after(0, lambda l=line: self.job_details.insert(tk.END, f"> {l}\n"))
+                
+                if result.returncode != 0:
+                    raise Exception(f"Script failed: {result.stderr}")
+            else:
+                # Simulate work for demo
+                for i in range(10):
+                    if STOP_EVENT.is_set():
+                        raise Exception("Job cancelled")
+                    time.sleep(0.5)
+                    self.root.after(0, lambda i=i: self.job_details.insert(tk.END, f"Step {i+1}/10 complete\n"))
+                
+                # Create a dummy output file for demonstration
+                output_file = os.path.join(work_dir, "output.json")
+                with open(output_file, 'w') as f:
+                    json.dump({"status": "success", "job_id": job_id}, f)
+            
+            # Compute output hash for verification
+            output_hash = None
+            if job.get('expectedOutputHash'):
+                self.log("Computing output hash for verification...")
+                
+                # Look for output files
+                output_files = [f for f in os.listdir(work_dir) if f.startswith('output')]
+                if output_files:
+                    # Hash the first output file found
+                    output_path = os.path.join(work_dir, output_files[0])
+                    output_hash = self.hash_file(output_path)
+                    self.log(f"Output hash: {output_hash}")
+                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nOutput hash: {output_hash}\n"))
+                else:
+                    # Hash entire directory
+                    output_hash = self.hash_directory(work_dir)
+                    self.log(f"Directory hash: {output_hash}")
+                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nDirectory hash: {output_hash}\n"))
+                
+                # Verify against expected hash
+                expected = job['expectedOutputHash'].lower()
+                actual = output_hash.lower()
+                if expected == actual:
+                    self.log("✓ Hash verification PASSED", "SUCCESS")
+                    self.root.after(0, lambda: self.job_details.insert(tk.END, "\n✓ Verification PASSED\n"))
+                else:
+                    self.log("✗ Hash verification FAILED - payment will be held", "WARNING")
+                    self.root.after(0, lambda: self.job_details.insert(tk.END, f"\n✗ Verification FAILED\nExpected: {expected}\nActual: {actual}\n"))
+            
+            # Mark completed with hash
             self.update_job_status(job_id, "completed", 
                                  logs=["Job completed successfully"],
-                                 result={"status": "success"})
+                                 result={"status": "success", "work_dir": work_dir},
+                                 actual_output_hash=output_hash)
             
             self.log(f"Job completed: {job['title']}", "SUCCESS")
             self.root.after(0, self.on_job_completed)
@@ -593,10 +664,8 @@ RAM: {info.get('ram', 'N/A')} GB
             self.root.after(0, lambda: self.job_status_var.set("Job failed"))
             
         finally:
-            try:
-                shutil.rmtree(work_dir)
-            except:
-                pass
+            # Don't delete work_dir immediately so user can inspect if needed
+            # shutil.rmtree(work_dir, ignore_errors=True)
             CURRENT_JOB = None
             self.root.after(0, self.progress.stop)
             
@@ -609,7 +678,29 @@ RAM: {info.get('ram', 'N/A')} GB
         current_jobs = int(self.jobs_completed_var.get().split(':')[1].strip())
         self.jobs_completed_var.set(f"Jobs: {current_jobs + 1}")
         
-    def update_job_status(self, job_id, status, logs=None, result=None, error=None):
+    def hash_file(self, filepath):
+        """Compute SHA256 hash of a file"""
+        sha256 = hashlib.sha256()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                sha256.update(chunk)
+        return f"sha256:{sha256.hexdigest()}"
+    
+    def hash_directory(self, directory):
+        """Compute combined SHA256 hash of all files in directory"""
+        sha256 = hashlib.sha256()
+        for root, dirs, files in os.walk(directory):
+            for filename in sorted(files):  # Sort for deterministic ordering
+                filepath = os.path.join(root, filename)
+                # Add filename to hash
+                sha256.update(filename.encode())
+                # Add file content to hash
+                with open(filepath, 'rb') as f:
+                    for chunk in iter(lambda: f.read(8192), b''):
+                        sha256.update(chunk)
+        return f"sha256:{sha256.hexdigest()}"
+    
+    def update_job_status(self, job_id, status, logs=None, result=None, error=None, actual_output_hash=None):
         """Update job status via API"""
         payload = {
             "jobId": job_id,
@@ -622,6 +713,8 @@ RAM: {info.get('ram', 'N/A')} GB
             payload["result"] = result
         if error:
             payload["error"] = error
+        if actual_output_hash:
+            payload["actualOutputHash"] = actual_output_hash
             
         return self.api_request("PATCH", "/api/jobs", payload)
         
