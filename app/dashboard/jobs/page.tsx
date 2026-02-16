@@ -398,9 +398,23 @@ export default function JobMonitor() {
                           -${job.reward?.toFixed(2) || "0.00"}
                         </span>
                       ) : job.claimedBy?.toLowerCase() === username.toLowerCase() ? (
-                        <span className="font-mono text-sm text-emerald-400" title="You will earn this reward">
-                          +${job.reward?.toFixed(2) || "0.00"}
-                        </span>
+                        job.verificationStatus === 'failed' ? (
+                          <span className="font-mono text-sm text-amber-400" title="Payment held - verification failed">
+                            Held
+                          </span>
+                        ) : job.verificationStatus === 'pending' ? (
+                          <span className="font-mono text-sm text-amber-400" title="Payment pending verification">
+                            Pending
+                          </span>
+                        ) : job.verificationStatus === 'manual_review' ? (
+                          <span className="font-mono text-sm text-purple-400" title="Payment held for manual review">
+                            Review
+                          </span>
+                        ) : (
+                          <span className="font-mono text-sm text-emerald-400" title="You will earn this reward">
+                            +${job.reward?.toFixed(2) || "0.00"}
+                          </span>
+                        )
                       ) : (
                         <span className="font-mono text-sm text-zinc-400">
                           ${job.reward?.toFixed(2) || "0.00"}
@@ -499,14 +513,28 @@ export default function JobMonitor() {
                                 {job.postedBy?.toLowerCase() === username.toLowerCase() ? 'Your Cost:' : 
                                  job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'Your Earnings:' : 'Reward:'}
                               </span>
-                              <span className={`ml-2 font-mono font-medium ${
-                                job.postedBy?.toLowerCase() === username.toLowerCase() ? 'text-rose-400' : 
-                                job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'text-emerald-400' : 'text-zinc-300'
-                              }`}>
-                                {job.postedBy?.toLowerCase() === username.toLowerCase() ? '-' : 
-                                 job.claimedBy?.toLowerCase() === username.toLowerCase() ? '+' : ''}
-                                ${job.reward?.toFixed(2) || "0.00"}
-                              </span>
+                              {job.claimedBy?.toLowerCase() === username.toLowerCase() && job.verificationStatus === 'failed' ? (
+                                <span className="ml-2 font-mono font-medium text-amber-400">
+                                  Payment Held (Verification Failed)
+                                </span>
+                              ) : job.claimedBy?.toLowerCase() === username.toLowerCase() && job.verificationStatus === 'pending' ? (
+                                <span className="ml-2 font-mono font-medium text-amber-400">
+                                  Payment Pending (Verification in Progress)
+                                </span>
+                              ) : job.claimedBy?.toLowerCase() === username.toLowerCase() && job.verificationStatus === 'manual_review' ? (
+                                <span className="ml-2 font-mono font-medium text-purple-400">
+                                  Payment Held (Manual Review)
+                                </span>
+                              ) : (
+                                <span className={`ml-2 font-mono font-medium ${
+                                  job.postedBy?.toLowerCase() === username.toLowerCase() ? 'text-rose-400' : 
+                                  job.claimedBy?.toLowerCase() === username.toLowerCase() ? 'text-emerald-400' : 'text-zinc-300'
+                                }`}>
+                                  {job.postedBy?.toLowerCase() === username.toLowerCase() ? '-' : 
+                                   job.claimedBy?.toLowerCase() === username.toLowerCase() ? '+' : ''}
+                                  ${job.reward?.toFixed(2) || "0.00"}
+                                </span>
+                              )}
                             </div>
                             {job.deviceId && (
                               <div>
