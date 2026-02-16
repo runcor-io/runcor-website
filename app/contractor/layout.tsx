@@ -19,7 +19,7 @@ import LogoutButton from "../components/LogoutButton";
 const navItems = [
   { href: "/contractor", label: "Dashboard", icon: Briefcase },
   { href: "/contractor/create", label: "Post Job", icon: Plus },
-  { href: "/contractor/tracking", label: "My Jobs", icon: Activity },
+  { href: "/contractor/tracking", label: "Jobs", icon: Activity },
   { href: "/contractor/results", label: "Results", icon: Package },
   { href: "/contractor/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/contractor/wallet", label: "Wallet", icon: Wallet },
@@ -51,7 +51,6 @@ export default function ContractorLayout({
               />
               <div>
                 <span className="font-bold text-lg tracking-tight text-white">RUNCOR</span>
-                <p className="text-[10px] text-zinc-500 font-mono">CONTRACTOR DECK</p>
               </div>
             </Link>
           </div>
@@ -99,11 +98,7 @@ export default function ContractorLayout({
           {/* Top Bar */}
           <header className="h-16 border-b border-zinc-800 bg-black/50 backdrop-blur-md fixed top-0 right-0 left-64 z-40 flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
-              <span className="text-xs font-mono text-zinc-500">CONTRACTOR STATUS</span>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-xs font-mono text-amber-400">ACTIVE</span>
-              </div>
+              <span className="text-xs text-zinc-500">Client Portal</span>
             </div>
             <div className="flex items-center gap-6">
               <Link 

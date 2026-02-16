@@ -289,7 +289,7 @@ export default function ProfilePage() {
                   <label className="block text-xs text-zinc-500 mb-2">Account Type</label>
                   <input
                     type="text"
-                    value={role === "contractor" ? "Job Poster" : "Device Owner"}
+                    value={role === "contractor" ? "Job Poster" : "Provider"}
                     disabled
                     className="w-full px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 cursor-not-allowed"
                   />

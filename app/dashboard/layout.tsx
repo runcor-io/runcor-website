@@ -18,9 +18,9 @@ import LogoutButton from "../components/LogoutButton";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/device", label: "Devices", icon: Cpu },
+  { href: "/dashboard/device", label: "Nodes", icon: Cpu },
   { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/dashboard/marketplace", label: "Marketplace", icon: Radio },
+  { href: "/dashboard/marketplace", label: "Browse Jobs", icon: Radio },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/wallet", label: "Wallet", icon: Wallet },
 ];
@@ -51,7 +51,6 @@ export default function DashboardLayout({
               />
               <div>
                 <span className="font-bold text-lg tracking-tight text-white">RUNCOR</span>
-                <p className="text-[10px] text-zinc-500 font-mono">COMMAND CENTER</p>
               </div>
             </Link>
           </div>
@@ -100,11 +99,7 @@ export default function DashboardLayout({
           {/* Top Bar */}
           <header className="h-16 border-b border-zinc-800 bg-black/50 backdrop-blur-md fixed top-0 right-0 left-64 z-40 flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
-              <span className="text-xs font-mono text-zinc-500">SYSTEM STATUS</span>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-mono text-emerald-400">ONLINE</span>
-              </div>
+              <span className="text-xs text-zinc-500">Provider Portal</span>
             </div>
             <div className="flex items-center gap-6">
               <Link 

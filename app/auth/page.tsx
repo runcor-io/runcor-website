@@ -293,7 +293,7 @@ function AuthContent() {
                     <Server className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-white mb-1">Device Owner</h3>
+                    <h3 className="font-bold text-white mb-1">Provider</h3>
                     <p className="text-sm text-zinc-400">
                       Connect your computers, servers, or hardware to earn by completing jobs.
                     </p>
