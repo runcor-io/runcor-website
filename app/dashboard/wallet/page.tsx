@@ -1,208 +1,289 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Wallet,
   ArrowUpRight,
   ArrowDownLeft,
-  Lock,
   Clock,
   CheckCircle,
-  Copy,
-  ExternalLink,
-  Shield,
-  AlertTriangle,
+  RefreshCw,
+  DollarSign,
+  Briefcase,
+  AlertCircle,
 } from "lucide-react";
 
-const transactions = [
-  { id: "TXN-4821", type: "income", amount: "0.0042 ETH", from: "Job #8492", time: "2m ago", status: "confirmed" },
-  { id: "TXN-4820", type: "income", amount: "0.0028 ETH", from: "Job #8491", time: "15m ago", status: "confirmed" },
-  { id: "TXN-4819", type: "income", amount: "0.0051 ETH", from: "Job #8490", time: "32m ago", status: "confirmed" },
-  { id: "TXN-4818", type: "escrow", amount: "0.045 ETH", from: "REQ-1294", time: "1h ago", status: "locked" },
-  { id: "TXN-4817", type: "income", amount: "0.0084 ETH", from: "Job #8489", time: "2h ago", status: "confirmed" },
-];
+interface Transaction {
+  id: string;
+  type: string;
+  description: string;
+  amount: number;
+  status: string;
+  date: string;
+  deviceId: string;
+}
 
-const escrows = [
-  { id: "ESC-293", job: "REQ-1294", amount: "0.045 ETH", unlocksIn: "3h 24m", status: "active" },
-  { id: "ESC-292", job: "REQ-1288", amount: "0.012 ETH", unlocksIn: "Ready", status: "releasable" },
-];
+interface EarningsData {
+  balance: number;
+  totalEarned: number;
+  pendingPayout: number;
+  transactions: Transaction[];
+}
 
-export default function BlockchainConsole() {
-  const [copied, setCopied] = useState(false);
-  const walletAddress = "0x7a23...4f91";
+export default function WalletPage() {
+  const { data: session } = useSession();
+  const [earnings, setEarnings] = useState<EarningsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState("");
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText("0x7a23c8567d1a9e8f4c2b5d6e9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const fetchEarnings = async () => {
+    try {
+      const response = await fetch("/api/earnings");
+      if (response.ok) {
+        const data = await response.json();
+        setEarnings(data);
+      } else {
+        setError("Failed to load earnings");
+      }
+    } catch (err) {
+      setError("Failed to load earnings");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchEarnings();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchEarnings, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const requestPayout = async () => {
+    const amount = parseFloat(payoutAmount);
+    if (!amount || amount <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+
+    if (amount > (earnings?.balance || 0)) {
+      setError("Insufficient balance");
+      return;
+    }
+
+    setPayoutLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/earnings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, method: "bank_transfer" }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPayoutMessage(data.message);
+        setPayoutAmount("");
+        fetchEarnings(); // Refresh earnings
+      } else {
+        setError(data.error || "Failed to request payout");
+      }
+    } catch (err) {
+      setError("Failed to request payout");
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+        <span className="ml-3 text-zinc-400">Loading wallet...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Blockchain Console</h1>
-        <p className="text-gray-500 text-sm">Manage your wallet, escrows, and transaction history</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Wallet</h1>
+          <p className="text-zinc-500 text-sm">Track your earnings and request payouts</p>
+        </div>
+        <button
+          onClick={fetchEarnings}
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-cyan-500/50 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4 text-zinc-400" />
+        </button>
       </div>
 
-      {/* Wallet Overview */}
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
+      {payoutMessage && (
+        <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <p className="text-emerald-400">{payoutMessage}</p>
+        </div>
+      )}
+
+      {/* Balance Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Balance Card */}
-        <div className="card p-6 md:col-span-2">
+        {/* Main Balance */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 md:col-span-2">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Total Balance</p>
-              <p className="text-4xl font-bold font-mono">2.847 ETH</p>
-              <p className="text-sm text-gray-500 mt-1">≈ $7,112.50 USD</p>
+              <p className="text-zinc-400 text-sm mb-1">Available Balance</p>
+              <p className="text-4xl font-bold text-white font-mono">
+                ${earnings?.balance.toFixed(2) || "0.00"}
+              </p>
+              <p className="text-sm text-zinc-500 mt-1">USD</p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-white" />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
 
-          {/* Address */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-black border border-gray-800">
-            <span className="font-mono text-sm text-gray-400">{walletAddress}</span>
-            <button
-              onClick={copyAddress}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
-            >
-              {copied ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-gray-500" />}
-            </button>
-            <button className="p-1.5 rounded hover:bg-white/10 transition-colors">
-              <ExternalLink className="w-4 h-4 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 mt-6">
-            <button className="flex-1 btn-pill text-sm">
-              <ArrowDownLeft className="w-4 h-4" />
-              Deposit
-            </button>
-            <button className="flex-1 btn-pill-secondary text-sm">
-              <ArrowUpRight className="w-4 h-4" />
-              Withdraw
-            </button>
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+            <div>
+              <p className="text-xs text-zinc-500 uppercase">Total Earned</p>
+              <p className="text-xl font-bold text-emerald-400 font-mono">
+                +${earnings?.totalEarned.toFixed(2) || "0.00"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500 uppercase">Pending Payout</p>
+              <p className="text-xl font-bold text-amber-400 font-mono">
+                ${earnings?.pendingPayout.toFixed(2) || "0.00"}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Escrow Summary */}
-        <div className="card p-6">
+        {/* Payout Card */}
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Lock className="w-5 h-5 text-amber-400" />
-            <h3 className="font-bold">Escrow Status</h3>
+            <DollarSign className="w-5 h-5 text-cyan-400" />
+            <h3 className="font-bold text-white">Request Payout</h3>
           </div>
+
           <div className="space-y-4">
             <div>
-              <p className="text-xs text-gray-500">Locked in Escrow</p>
-              <p className="text-2xl font-bold font-mono text-amber-400">0.057 ETH</p>
+              <label className="block text-xs text-zinc-500 mb-2">Amount (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                <input
+                  type="number"
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  placeholder="0.00"
+                  min="1"
+                  step="0.01"
+                  max={earnings?.balance}
+                  className="w-full pl-8 pr-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                />
+              </div>
+              <p className="text-xs text-zinc-500 mt-1">
+                Max: ${earnings?.balance.toFixed(2)}
+              </p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Available to Claim</p>
-              <p className="text-2xl font-bold font-mono text-green-400">0.012 ETH</p>
-            </div>
-            <div className="pt-4 border-t border-white/10">
-              <p className="text-xs text-gray-500">Total Secured (All Time)</p>
-              <p className="text-xl font-bold font-mono">12.456 ETH</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Active Escrows */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold">Active Escrows</h3>
-          <span className="text-xs text-gray-500">Smart Contract Secured</span>
-        </div>
-        <div className="space-y-3">
-          {escrows.map((escrow) => (
-            <div
-              key={escrow.id}
-              className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/5"
+            <button
+              onClick={requestPayout}
+              disabled={payoutLoading || !payoutAmount || parseFloat(payoutAmount) <= 0}
+              className="w-full flex items-center justify-center gap-2 bg-cyan-500 text-black font-medium py-2 rounded-lg hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  escrow.status === "active" ? "bg-amber-500/20" : "bg-green-500/20"
-                }`}>
-                  <Lock className={`w-5 h-5 ${
-                    escrow.status === "active" ? "text-amber-400" : "text-green-400"
-                  }`} />
-                </div>
-                <div>
-                  <p className="font-medium">{escrow.job}</p>
-                  <p className="text-xs text-gray-500 font-mono">{escrow.id}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-mono font-medium">{escrow.amount}</p>
-                <div className="flex items-center gap-1 text-xs">
-                  <Clock className="w-3 h-3 text-gray-500" />
-                  <span className={escrow.status === "releasable" ? "text-green-400" : "text-gray-500"}>
-                    {escrow.unlocksIn}
-                  </span>
-                </div>
-              </div>
-              {escrow.status === "releasable" && (
-                <button className="px-4 py-2 rounded-full bg-green-500 text-black text-sm font-medium hover:bg-green-400 transition-all">
-                  Claim
-                </button>
+              {payoutLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ArrowUpRight className="w-4 h-4" />
+                  Request Payout
+                </>
               )}
-            </div>
-          ))}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Transaction History */}
-      <div className="card p-6">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold">Transaction History</h3>
-          <button className="text-xs text-cyan-400 hover:text-cyan-300">View All</button>
+          <h3 className="font-bold text-white">Earnings History</h3>
+          <span className="text-xs text-zinc-500">{earnings?.transactions.length || 0} transactions</span>
         </div>
-        <div className="space-y-2">
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  tx.type === "income" ? "bg-green-500/20" : "bg-amber-500/20"
-                }`}>
-                  {tx.type === "income" ? (
-                    <ArrowDownLeft className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <Lock className="w-4 h-4 text-amber-400" />
-                  )}
+
+        {earnings?.transactions.length === 0 ? (
+          <div className="p-8 text-center">
+            <Briefcase className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+            <p className="text-zinc-500">No earnings yet</p>
+            <p className="text-zinc-600 text-sm mt-1">
+              Complete jobs to start earning
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {earnings?.transactions.map((tx) => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-900/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <ArrowDownLeft className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{tx.description}</p>
+                    <p className="text-xs text-zinc-500 font-mono">
+                      {tx.deviceId?.slice(0, 12)}... • {formatDate(tx.date)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{tx.from}</p>
-                  <p className="text-xs text-gray-500 font-mono">{tx.id}</p>
+                <div className="text-right">
+                  <p className="font-mono text-sm text-emerald-400">
+                    +${tx.amount.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-zinc-500">{tx.status}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`font-mono text-sm ${tx.type === "income" ? "text-green-400" : "text-amber-400"}`}>
-                  {tx.type === "income" ? "+" : ""}{tx.amount}
-                </p>
-                <p className="text-xs text-gray-500">{tx.time}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Security Notice */}
-      <div className="card p-4 flex items-center gap-4 border-green-500/30 bg-green-500/5">
-        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-green-400" />
+      {/* Info Notice */}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+          <Clock className="w-5 h-5 text-blue-400" />
         </div>
         <div className="flex-1">
-          <p className="font-medium text-green-400">Non-Custodial Security</p>
-          <p className="text-sm text-gray-400">
-            You maintain full control of your private keys. RunCor never has access to your funds.
+          <p className="font-medium text-blue-400">Payout Processing</p>
+          <p className="text-sm text-zinc-400">
+            Payout requests are processed within 3-5 business days. Minimum payout: $10.00
           </p>
         </div>
       </div>

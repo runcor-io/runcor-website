@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import { Terminal } from "lucide-react";
+import { Terminal, ArrowRight, LogOut } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 
 export default function HeroSection() {
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
+
   return (
     <section className="relative pt-40 pb-24 px-6 overflow-hidden">
       <div className="max-w-4xl mx-auto text-center z-10">
@@ -22,14 +28,35 @@ export default function HeroSection() {
           </p>
 
           <div className="flex justify-center gap-4 pt-4">
-            <Link href="/contractor" className="btn-pill-secondary h-14 px-8 text-lg">
-              <Terminal className="w-5 h-5" />
-              Contractor Console
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/contractor" className="btn-pill-secondary h-14 px-8 text-lg">
+                  <Terminal className="w-5 h-5" />
+                  Contractor Console
+                </Link>
+                <button 
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="btn-pill h-14 px-8 text-lg bg-red-500/20 hover:bg-red-500/30 border-red-500/50"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <Link href="/auth" className="btn-pill h-14 px-8 text-lg">
+                <ArrowRight className="w-5 h-5" />
+                Get Started
+              </Link>
+            )}
           </div>
+
+          {isAuthenticated && (
+            <p className="text-sm text-gray-500">
+              Logged in as <span className="text-cyan-400">{(session?.user as any)?.username}</span>
+            </p>
+          )}
         </div>
       </div>
     </section>
   );
 }
-

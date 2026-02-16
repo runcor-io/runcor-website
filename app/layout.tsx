@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import AuthProvider from "./components/AuthProvider";
+import SocketProvider from "./components/SocketProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,7 +59,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="selection:bg-white selection:text-black">{children}</body>
+      <body className="selection:bg-white selection:text-black">
+        <AuthProvider>
+          <SocketProvider>{children}</SocketProvider>
+        </AuthProvider>
+      </body>
     </html>
   );
 }

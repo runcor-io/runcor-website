@@ -22,12 +22,22 @@ import {
 
 const platforms = [
   {
+    id: "windows",
+    name: "Windows",
+    icon: Monitor,
+    description: "Windows 10/11 Desktop App",
+    filename: "RunCor-Agent.exe",
+    size: "~15 MB",
+    isGUI: true,
+  },
+  {
     id: "linux-amd64",
     name: "Linux x86_64",
     icon: Server,
     description: "Intel/AMD servers and desktops",
     filename: "runcor-agent-linux-amd64",
     size: "~15 MB",
+    isGUI: false,
   },
   {
     id: "linux-riscv64",
@@ -36,6 +46,7 @@ const platforms = [
     description: "Milk-V, StarFive boards",
     filename: "runcor-agent-linux-riscv64",
     size: "~18 MB",
+    isGUI: false,
   },
   {
     id: "linux-arm64",
@@ -44,6 +55,7 @@ const platforms = [
     description: "Raspberry Pi, ARM servers",
     filename: "runcor-agent-linux-arm64",
     size: "~15 MB",
+    isGUI: false,
   },
 ];
 

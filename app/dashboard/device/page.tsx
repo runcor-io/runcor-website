@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Cpu,
@@ -43,6 +44,10 @@ interface Device {
     jobStatus: string;
     uptimeSeconds: number;
   };
+  control?: {
+    paused: boolean;
+    estop: boolean;
+  };
   lastSeen: string;
   registeredAt: string;
 }
@@ -50,11 +55,18 @@ interface Device {
 export default function DeviceControl() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [showEstop, setShowEstop] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [controlLoading, setControlLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const { data: session } = useSession();
+  const currentUsername = (session?.user as any)?.username || "yourname";
+  
+  // Get control status from selected device
+  const isPaused = selectedDevice?.control?.paused || false;
+  const isEstop = selectedDevice?.control?.estop || false;
 
   // Fetch devices on load
   useEffect(() => {
@@ -62,19 +74,23 @@ export default function DeviceControl() {
     // Refresh every 10 seconds
     const interval = setInterval(fetchDevices, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUsername]);
 
   const fetchDevices = async () => {
     try {
-      const username = localStorage.getItem("runcor_current_user");
-      const url = username 
-        ? `/api/devices?username=${encodeURIComponent(username)}`
-        : "/api/devices";
+      if (!currentUsername || currentUsername === "yourname") {
+        // Wait for session to load
+        return;
+      }
+      
+      const url = `/api/devices?username=${encodeURIComponent(currentUsername)}`;
+      console.log("[Device] Fetching devices for:", currentUsername);
       
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch devices");
       
       const data = await res.json();
+      console.log("[Device] Found devices:", data.length);
       setDevices(data);
       
       // Select first device if none selected
@@ -120,6 +136,38 @@ export default function DeviceControl() {
     }
   };
 
+  const sendControlCommand = async (action: "pause" | "resume" | "estop" | "reset-estop") => {
+    if (!selectedDevice) return;
+    
+    setControlLoading(true);
+    setMessage("");
+    
+    try {
+      const response = await fetch("/api/devices/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId: selectedDevice.deviceId,
+          action,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage(data.message);
+        // Refresh device list to get updated control state
+        fetchDevices();
+      } else {
+        setError(data.error || "Failed to send command");
+      }
+    } catch (err) {
+      setError("Failed to send command. Please try again.");
+    } finally {
+      setControlLoading(false);
+    }
+  };
+
   const formatLastSeen = (isoString: string) => {
     const date = new Date(isoString);
     const now = new Date();
@@ -149,7 +197,7 @@ export default function DeviceControl() {
           <div className="space-y-3">
             <p className="text-sm text-gray-500">To register a device:</p>
             <code className="block p-4 rounded-lg bg-black border border-gray-800 text-sm text-left">
-              runcor-agent --register --username {localStorage.getItem("runcor_current_user") || "yourname"} --api-url http://localhost:3000
+              runcor-agent --register --username {currentUsername} --api-url http://localhost:3000
             </code>
           </div>
           <button 
@@ -166,6 +214,21 @@ export default function DeviceControl() {
 
   return (
     <div className="space-y-6">
+      {/* Status Message */}
+      {message && (
+        <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+          <p className="text-emerald-400">{message}</p>
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {error && !loading && (
+        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-red-400" />
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -181,19 +244,38 @@ export default function DeviceControl() {
             Refresh
           </button>
           <button
-            onClick={() => setIsPaused(!isPaused)}
-            className={`btn-pill-secondary ${isPaused ? "text-amber-400 border-amber-500/50" : ""}`}
+            onClick={() => sendControlCommand(isPaused ? "resume" : "pause")}
+            disabled={controlLoading || isEstop || !selectedDevice}
+            className={`btn-pill-secondary ${isPaused ? "text-amber-400 border-amber-500/50" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+            {controlLoading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : isPaused ? (
+              <Play className="w-4 h-4" />
+            ) : (
+              <Pause className="w-4 h-4" />
+            )}
             {isPaused ? "Resume" : "Pause"}
           </button>
-          <button
-            onClick={() => setShowEstop(true)}
-            className="px-4 py-2 rounded-full bg-red-500/20 border border-red-500/50 text-red-400 font-medium text-sm hover:bg-red-500/30 transition-all flex items-center gap-2"
-          >
-            <AlertOctagon className="w-4 h-4" />
-            E-STOP
-          </button>
+          {isEstop ? (
+            <button
+              onClick={() => sendControlCommand("reset-estop")}
+              disabled={controlLoading || !selectedDevice}
+              className="px-4 py-2 rounded-full bg-amber-500 text-black font-medium text-sm hover:bg-amber-400 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${controlLoading ? "animate-spin" : ""}`} />
+              Reset E-STOP
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowEstop(true)}
+              disabled={controlLoading || !selectedDevice}
+              className="px-4 py-2 rounded-full bg-red-500/20 border border-red-500/50 text-red-400 font-medium text-sm hover:bg-red-500/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <AlertOctagon className="w-4 h-4" />
+              E-STOP
+            </button>
+          )}
           {selectedDevice && (
             <button
               onClick={() => setShowDelete(true)}
@@ -301,7 +383,7 @@ export default function DeviceControl() {
                   <Activity className="w-4 h-4 text-cyan-400" />
                   <span className="text-gray-400 text-sm">CPU Load</span>
                 </div>
-                <p className="text-2xl font-bold">{selectedDevice.status?.cpuLoadPercent.toFixed(1) || "0.0"}%</p>
+                <p className="text-2xl font-bold">{(selectedDevice.status?.cpuLoadPercent ?? 0).toFixed(1)}%</p>
                 <div className="mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-cyan-400 rounded-full"
@@ -314,7 +396,7 @@ export default function DeviceControl() {
                   <Thermometer className="w-4 h-4 text-amber-400" />
                   <span className="text-gray-400 text-sm">RAM Usage</span>
                 </div>
-                <p className="text-2xl font-bold">{selectedDevice.status?.ramUsedPercent.toFixed(1) || "0.0"}%</p>
+                <p className="text-2xl font-bold">{(selectedDevice.status?.ramUsedPercent ?? 0).toFixed(1)}%</p>
                 <div className="mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-amber-400 rounded-full"
@@ -372,6 +454,34 @@ export default function DeviceControl() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Control Status */}
+            <div className="card p-6">
+              <h3 className="font-bold mb-4">Control Status</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Status</span>
+                  <span className={`text-sm font-medium ${
+                    isEstop ? "text-red-400" : isPaused ? "text-amber-400" : "text-emerald-400"
+                  }`}>
+                    {isEstop ? "EMERGENCY STOP" : isPaused ? "PAUSED" : "ACTIVE"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Job Processing</span>
+                  <span className={`text-sm ${isPaused || isEstop ? "text-red-400" : "text-emerald-400"}`}>
+                    {isEstop ? "HALTED" : isPaused ? "PAUSED" : "ACCEPTING"}
+                  </span>
+                </div>
+                {isEstop && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 mt-2">
+                    <p className="text-red-400 text-xs">
+                      ⚠️ E-STOP is active. All operations halted. Click "Reset E-STOP" to resume.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* GPU Info */}
             {selectedDevice.specs.gpu && (
               <div className="card p-6">
@@ -439,11 +549,12 @@ export default function DeviceControl() {
               <button
                 onClick={() => {
                   setShowEstop(false);
-                  alert("E-STOP activated. Device halted.");
+                  sendControlCommand("estop");
                 }}
-                className="flex-1 px-4 py-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-600 transition-all"
+                disabled={controlLoading}
+                className="flex-1 px-4 py-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-600 transition-all disabled:opacity-50"
               >
-                CONFIRM STOP
+                {controlLoading ? "ACTIVATING..." : "CONFIRM STOP"}
               </button>
             </div>
           </div>

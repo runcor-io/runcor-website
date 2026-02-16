@@ -38,9 +38,22 @@ export default function InstallAgent() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get current user
-    const user = localStorage.getItem("runcor_current_user");
-    if (user) setUsername(user);
+    // Try to get username from localStorage (legacy) or use default
+    // In production, this would use the session
+    const userStr = localStorage.getItem("runcor_current_user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUsername(user.username || user);
+      } catch {
+        setUsername(userStr);
+      }
+    }
+    // Also check for next-auth session cookie (simplified check)
+    const hasSession = document.cookie.includes("next-auth");
+    if (hasSession && username === "") {
+      // Will be handled by session context in future updates
+    }
 
     // Detect system info
     detectSystem();

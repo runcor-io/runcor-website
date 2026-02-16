@@ -1,71 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { MongoClient } from "mongodb";
+import { getServerSession } from "next-auth"; 
+import { getToken } from "next-auth/jwt";
 
-const DATA_FILE = path.join(process.cwd(), "data", "devices.json");
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/runcor";
+const DB_NAME = "runcor";
 
-// Ensure data directory exists
-function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), "data");
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+let client: MongoClient | null = null;
+
+async function getDb() {
+  if (!client) {
+    client = new MongoClient(MONGODB_URI);
+    await client.connect();
   }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({}));
-  }
+  return client.db(DB_NAME);
 }
 
-// Read devices from file
-function readDevices(): Record<string, any> {
-  ensureDataDir();
-  try {
-    const data = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(data);
-  } catch {
-    return {};
-  }
-}
-
-// Write devices to file
-function writeDevices(devices: Record<string, any>) {
-  ensureDataDir();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(devices, null, 2));
-}
-
-// GET /api/devices - Get all devices or a specific device
+// GET /api/devices - Get all devices or filter by username/deviceId
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const deviceId = searchParams.get("id");
-  const username = searchParams.get("username");
+  try {
+    const { searchParams } = new URL(request.url);
+    const deviceId = searchParams.get("id");
+    const username = searchParams.get("username");
 
-  const devices = readDevices();
+    const db = await getDb();
+    const devices = db.collection("devices");
 
-  // If deviceId provided, return specific device
-  if (deviceId) {
-    const device = devices[deviceId];
-    if (!device) {
-      return NextResponse.json({ error: "Device not found" }, { status: 404 });
+    // If deviceId provided, return specific device
+    if (deviceId) {
+      const device = await devices.findOne({ deviceId });
+      if (!device) {
+        return NextResponse.json({ error: "Device not found" }, { status: 404 });
+      }
+      return NextResponse.json(device);
     }
-    return NextResponse.json(device);
-  }
 
-  // If username provided, return devices for that user
-  if (username) {
-    const userDevices = Object.values(devices).filter(
-      (d: any) => d.username === username
-    );
-    return NextResponse.json(userDevices);
-  }
+    // If username provided, return devices for that user (case-insensitive)
+    if (username) {
+      console.log("[API] Fetching devices for username:", username);
+      const userDevices = await devices.find({ 
+        username: { $regex: new RegExp(`^${username}$`, 'i') }
+      }).toArray();
+      console.log("[API] Found devices:", userDevices.length);
+      return NextResponse.json(userDevices);
+    }
 
-  // Return all devices
-  return NextResponse.json(Object.values(devices));
+    // Return all devices
+    const allDevices = await devices.find({}).toArray();
+    return NextResponse.json(allDevices);
+  } catch (error) {
+    console.error("Error fetching devices:", error);
+    return NextResponse.json({ error: "Failed to fetch devices" }, { status: 500 });
+  }
 }
 
 // POST /api/devices - Register or update a device
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { deviceId, specs, status, username } = body;
+    const { deviceId, specs, status, username, currentJob } = body;
+
+    console.log("[API] Device registration attempt:", { deviceId, username });
 
     if (!deviceId) {
       return NextResponse.json(
@@ -74,24 +69,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const devices = readDevices();
+    const db = await getDb();
+    const devices = db.collection("devices");
 
-    // Update or create device
-    devices[deviceId] = {
-      ...devices[deviceId],
-      deviceId,
-      username: username || devices[deviceId]?.username || "unknown",
-      specs: specs || devices[deviceId]?.specs,
-      status: status || devices[deviceId]?.status,
-      lastSeen: new Date().toISOString(),
-      registeredAt: devices[deviceId]?.registeredAt || new Date().toISOString(),
+    // Build update document
+    const updateDoc: any = {
+      $set: {
+        deviceId,
+        lastSeen: new Date().toISOString(),
+      },
+      $setOnInsert: {
+        registeredAt: new Date().toISOString(),
+        control: {
+          paused: false,
+          estop: false,
+        }
+      }
     };
 
-    writeDevices(devices);
+    // Store username in lowercase for consistency
+    if (username) updateDoc.$set.username = username.toLowerCase();
+    if (specs) updateDoc.$set.specs = specs;
+    if (status) updateDoc.$set.status = status;
+    if (currentJob !== undefined) updateDoc.$set.currentJob = currentJob;
+    
+    // Ensure control field exists for older devices
+    updateDoc.$setOnInsert.control = {
+      paused: false,
+      estop: false,
+    };
+
+    // Upsert device
+    await devices.updateOne({ deviceId }, updateDoc, { upsert: true });
+
+    // Return the updated device
+    const device = await devices.findOne({ deviceId });
 
     return NextResponse.json({
       success: true,
-      device: devices[deviceId],
+      device,
     });
   } catch (error) {
     console.error("Error saving device:", error);
@@ -115,18 +131,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const devices = readDevices();
+    const db = await getDb();
+    const devices = db.collection("devices");
 
-    if (!devices[deviceId]) {
+    const result = await devices.deleteOne({ deviceId });
+
+    if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: "Device not found" },
         { status: 404 }
       );
     }
-
-    // Delete the device
-    delete devices[deviceId];
-    writeDevices(devices);
 
     return NextResponse.json({
       success: true,

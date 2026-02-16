@@ -1,398 +1,289 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import {
-  Cpu,
-  Box,
-  ArrowRight,
-  ArrowLeft,
-  Upload,
-  Zap,
-  Clock,
-  DollarSign,
-  Shield,
-  Check,
-  Terminal,
-  HardDrive,
-  Layers,
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { 
+  ArrowLeft, 
+  Upload, 
+  Play, 
+  DollarSign, 
+  Cpu, 
+  Code,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 
-const computeTemplates = [
-  { id: "blender", name: "Blender Render", icon: Layers, vram: "8GB+", time: "1-4h" },
-  { id: "llm", name: "LLM Fine-tuning", icon: Terminal, vram: "24GB+", time: "6-12h" },
-  { id: "batch", name: "Batch Processing", icon: HardDrive, vram: "4GB+", time: "30m-2h" },
-];
+export default function CreateJobPage() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const username = (session?.user as any)?.username || "unknown";
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState("python");
+  const [script, setScript] = useState(`#!/usr/bin/env python3
+"""
+Example job script - Modify this for your task
+The script runs in a temporary directory
+Output files will be captured and returned
+"""
 
-export default function JobCreation() {
-  const [step, setStep] = useState(1);
-  const [jobType, setJobType] = useState<"compute" | "physical" | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [specs, setSpecs] = useState({ vram: 8, cores: 4, duration: 2 });
-  const [budget, setBudget] = useState(0.04);
+import time
+import json
 
-  const estimatedMatch = 94;
-  const estimatedTime = "2h 15m";
+print("Job started!")
+
+# Your computation here
+result = {"status": "success", "data": [1, 2, 3, 4, 5]}
+
+# Save results to output.json
+with open("output.json", "w") as f:
+    json.dump(result, f)
+
+print("Job completed!")
+print(f"Result: {result}")
+`);
+  const [reward, setReward] = useState("10");
+  const [requiredCapabilities, setRequiredCapabilities] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<{success?: boolean; message?: string; jobId?: string} | null>(null);
+
+  const capabilities = [
+    { id: "cpu_compute", label: "CPU Compute", description: "General CPU processing" },
+    { id: "gpu_compute", label: "GPU Compute", description: "NVIDIA CUDA support" },
+    { id: "cuda", label: "CUDA", description: "CUDA-capable GPU" },
+    { id: "rendering", label: "Rendering", description: "3D/Graphics rendering" },
+    { id: "windows", label: "Windows", description: "Windows OS" },
+  ];
+
+  const toggleCapability = (cap: string) => {
+    if (requiredCapabilities.includes(cap)) {
+      setRequiredCapabilities(prev => prev.filter(c => c !== cap));
+    } else {
+      setRequiredCapabilities(prev => [...prev, cap]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          type,
+          script,
+          postedBy: username,
+          reward: parseFloat(reward) || 0,
+          requiredCapabilities
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult({
+          success: true,
+          message: "Job created successfully!",
+          jobId: data.jobId
+        });
+        // Reset form
+        setTitle("");
+        setScript("");
+      } else {
+        setResult({
+          success: false,
+          message: data.error || "Failed to create job"
+        });
+      }
+    } catch (error) {
+      setResult({
+        success: false,
+        message: "Network error - is the server running?"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-xs font-mono text-amber-400 mb-4">
-          <Terminal className="w-3 h-3" />
-          MISSION BRIEFING
+      <div className="flex items-center gap-4 mb-8">
+        <button
+          onClick={() => router.push("/contractor")}
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-zinc-400" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Create New Job</h1>
+          <p className="text-zinc-400 mt-1">Deploy computation to the network</p>
         </div>
-        <h1 className="text-3xl font-bold mb-2">Create New Project</h1>
-        <p className="text-gray-500">Define specifications and commission autonomous execution</p>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-4">
-        {[
-          { num: 1, label: "Path" },
-          { num: 2, label: "Specs" },
-          { num: 3, label: "Budget" },
-          { num: 4, label: "Deploy" },
-        ].map((s, i) => (
-          <div key={s.num} className="flex items-center gap-4">
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-mono text-sm font-bold ${
-                  step >= s.num
-                    ? "bg-amber-500 text-black"
-                    : "bg-gray-900 border border-gray-700 text-gray-500"
-                }`}
-              >
-                {step > s.num ? <Check className="w-5 h-5" /> : s.num}
-              </div>
-              <span className={`text-xs mt-1 ${step >= s.num ? "text-amber-400" : "text-gray-500"}`}>
-                {s.label}
-              </span>
-            </div>
-            {i < 3 && (
-              <div className={`w-12 h-0.5 ${step > s.num ? "bg-amber-500" : "bg-gray-800"}`} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Step 1: Path Selection */}
-      {step === 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <button
-            onClick={() => setJobType("compute")}
-            className={`card p-8 text-left transition-all ${
-              jobType === "compute"
-                ? "border-cyan-500/50 bg-cyan-500/5"
-                : "hover:border-gray-600"
-            }`}
-          >
-            <div className="flex items-start justify-between mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                <Cpu className="w-8 h-8 text-cyan-400" />
-              </div>
-              {jobType === "compute" && (
-                <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-black" />
-                </div>
-              )}
-            </div>
-            <h3 className="text-xl font-bold mb-2">Compute Job</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Digital workloads: AI training, rendering, batch processing, simulations.
-            </p>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-cyan-400" /> Containerized execution
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-cyan-400" /> Deterministic verification
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-cyan-400" /> Instant result delivery
-              </li>
-            </ul>
-          </button>
-
-          <button
-            onClick={() => setJobType("physical")}
-            className={`card p-8 text-left transition-all ${
-              jobType === "physical"
-                ? "border-amber-500/50 bg-amber-500/5"
-                : "hover:border-gray-600"
-            }`}
-          >
-            <div className="flex items-start justify-between mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center">
-                <Box className="w-8 h-8 text-amber-400" />
-              </div>
-              {jobType === "physical" && (
-                <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-black" />
-                </div>
-              )}
-            </div>
-            <h3 className="text-xl font-bold mb-2">Physical Job</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Real-world manufacturing: 3D printing, CNC machining, drone operations.
-            </p>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-amber-400" /> Photo/video verification
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-amber-400" /> Telemetry audit trail
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-amber-400" /> Physical delivery option
-              </li>
-            </ul>
-          </button>
-        </div>
-      )}
-
-      {/* Step 2: Specifications */}
-      {step === 2 && jobType === "compute" && (
-        <div className="space-y-6">
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Select Template</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {computeTemplates.map((template) => {
-                const Icon = template.icon;
-                return (
-                  <button
-                    key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    className={`p-4 rounded-xl border text-left transition-all ${
-                      selectedTemplate === template.id
-                        ? "border-cyan-500/50 bg-cyan-500/10"
-                        : "border-gray-800 bg-white/5 hover:border-gray-600"
-                    }`}
-                  >
-                    <Icon className="w-6 h-6 text-cyan-400 mb-3" />
-                    <p className="font-medium text-sm">{template.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">{template.vram} • {template.time}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <h3 className="font-bold mb-6">Resource Requirements</h3>
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">VRAM Required</span>
-                  <span className="font-mono text-cyan-400">{specs.vram} GB</span>
-                </div>
-                <input
-                  type="range"
-                  min="4"
-                  max="48"
-                  step="4"
-                  value={specs.vram}
-                  onChange={(e) => setSpecs({ ...specs, vram: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                />
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <span>4GB</span>
-                  <span>48GB</span>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">CPU Cores</span>
-                  <span className="font-mono text-cyan-400">{specs.cores}</span>
-                </div>
-                <input
-                  type="range"
-                  min="2"
-                  max="64"
-                  step="2"
-                  value={specs.cores}
-                  onChange={(e) => setSpecs({ ...specs, cores: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Max Duration</span>
-                  <span className="font-mono text-cyan-400">{specs.duration}h</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="24"
-                  value={specs.duration}
-                  onChange={(e) => setSpecs({ ...specs, duration: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Upload Assets</h3>
-            <div className="border-2 border-dashed border-gray-800 rounded-xl p-8 text-center hover:border-cyan-500/50 transition-colors">
-              <Upload className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-              <p className="text-sm text-gray-400 mb-2">Drop files here or click to browse</p>
-              <p className="text-xs text-gray-600">Docker images, Python scripts, datasets (max 10GB)</p>
-            </div>
+      {result?.success && (
+        <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <div>
+            <p className="text-emerald-400 font-medium">{result.message}</p>
+            <p className="text-emerald-400/70 text-sm">Job ID: {result.jobId}</p>
           </div>
         </div>
       )}
 
-      {step === 2 && jobType === "physical" && (
-        <div className="space-y-6">
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Upload Design Files</h3>
-            <div className="border-2 border-dashed border-gray-800 rounded-xl p-8 text-center hover:border-amber-500/50 transition-colors">
-              <Upload className="w-8 h-8 text-gray-500 mx-auto mb-3" />
-              <p className="text-sm text-gray-400 mb-2">Drop STL, STEP, or G-code files</p>
-              <p className="text-xs text-gray-600">Auto-analysis will estimate volume and print time</p>
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Material Selection</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {["PLA", "PETG", "ABS", "Nylon", "Resin", "Aluminum"].map((mat) => (
-                <button
-                  key={mat}
-                  className="p-3 rounded-lg border border-gray-800 hover:border-amber-500/50 transition-all text-sm"
-                >
-                  {mat}
-                </button>
-              ))}
-            </div>
-          </div>
+      {result && !result.success && (
+        <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400" />
+          <p className="text-red-400">{result.message}</p>
         </div>
       )}
 
-      {/* Step 3: Budget & Matching */}
-      {step === 3 && (
-        <div className="space-y-6">
-          <div className="card p-6">
-            <h3 className="font-bold mb-6">Budget Allocation</h3>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Total Budget</span>
-                  <span className="font-mono text-amber-400">{budget.toFixed(3)} ETH</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.01"
-                  max="1"
-                  step="0.001"
-                  value={budget}
-                  onChange={(e) => setBudget(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                />
-              </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Job Details */}
+        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Code className="w-5 h-5 text-amber-500" />
+            Job Details
+          </h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Job Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Train MNIST Classifier"
+                className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50"
+                required
+              />
             </div>
-            <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-medium text-amber-400">Price Oracle Suggestion</span>
-              </div>
-              <p className="text-sm text-gray-400">
-                Based on current network demand, similar jobs are completing at <span className="text-white font-mono">0.038 ETH</span>.
-                Your budget is <span className="text-green-400">{budget >= 0.038 ? "competitive" : "below average"}</span>.
-              </p>
-            </div>
-          </div>
 
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Smart Matching Preview</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm text-gray-400">Device Match</span>
-                </div>
-                <p className="text-2xl font-bold">{estimatedMatch}%</p>
-                <p className="text-xs text-gray-500">12 devices available now</p>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                  Job Type
+                </label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                >
+                  <option value="python">Python Script</option>
+                  <option value="ml_training">ML Training</option>
+                  <option value="data_processing">Data Processing</option>
+                  <option value="compute">General Compute</option>
+                </select>
               </div>
-              <div className="p-4 rounded-lg bg-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm text-gray-400">Est. Completion</span>
-                </div>
-                <p className="text-2xl font-bold">{estimatedTime}</p>
-                <p className="text-xs text-gray-500">includes verification</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="card p-6">
-            <h3 className="font-bold mb-4">Escrow Terms</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
-                <div className="flex items-center gap-3">
-                  <Shield className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm">Release on verification</span>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">
+                  Reward (USD)
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                  <input
+                    type="number"
+                    value={reward}
+                    onChange={(e) => setReward(e.target.value)}
+                    min="1"
+                    step="0.01"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                    required
+                  />
                 </div>
-                <span className="text-sm font-mono">50%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-white/5">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm">Release after 24h grace</span>
-                </div>
-                <span className="text-sm font-mono">50%</span>
               </div>
             </div>
           </div>
         </div>
-      )}
 
-      {/* Step 4: Deploy */}
-      {step === 4 && (
-        <div className="card p-8 text-center">
-          <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
-            <Shield className="w-10 h-10 text-amber-400" />
-          </div>
-          <h3 className="text-2xl font-bold mb-2">Ready to Deploy</h3>
-          <p className="text-gray-400 mb-8 max-w-md mx-auto">
-            Your job will be posted to the network with {budget.toFixed(3)} ETH in escrow.
-            Funds will be locked in the smart contract until verification is complete.
+        {/* Script Editor */}
+        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Upload className="w-5 h-5 text-amber-500" />
+            Python Script
+          </h2>
+          
+          <textarea
+            value={script}
+            onChange={(e) => setScript(e.target.value)}
+            rows={20}
+            className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-800 text-zinc-300 font-mono text-sm focus:outline-none focus:border-amber-500/50 resize-y"
+            placeholder="Enter your Python script here..."
+            required
+          />
+          
+          <p className="mt-2 text-xs text-zinc-500">
+            The script will run in an isolated temporary directory. Output files under 1MB will be captured.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/contractor/tracking" className="btn-pill bg-amber-500 hover:bg-amber-400 text-black border-none justify-center">
-              <Shield className="w-4 h-4" />
-              Lock Funds & Deploy
-            </Link>
-            <button className="btn-pill-secondary justify-center">
-              Save as Draft
-            </button>
-          </div>
         </div>
-      )}
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        {step > 1 && (
+        {/* Requirements */}
+        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Cpu className="w-5 h-5 text-amber-500" />
+            Required Capabilities
+          </h2>
+          
+          <div className="flex flex-wrap gap-2">
+            {capabilities.map((cap) => (
+              <button
+                key={cap.id}
+                type="button"
+                onClick={() => toggleCapability(cap.id)}
+                className={`px-4 py-2 rounded-lg border text-sm transition-all ${
+                  requiredCapabilities.includes(cap.id)
+                    ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                }`}
+                title={cap.description}
+              >
+                {cap.label}
+              </button>
+            ))}
+          </div>
+          
+          <p className="mt-3 text-xs text-zinc-500">
+            Only devices with ALL selected capabilities will be eligible for this job.
+            Leave empty to allow any device.
+          </p>
+        </div>
+
+        {/* Submit */}
+        <div className="flex items-center justify-between">
           <button
-            onClick={() => setStep(step - 1)}
-            className="btn-pill-secondary"
+            type="button"
+            onClick={() => router.push("/contractor")}
+            className="px-6 py-3 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            Cancel
           </button>
-        )}
-        {step < 4 && (
+          
           <button
-            onClick={() => setStep(step + 1)}
-            disabled={step === 1 && !jobType}
-            className="btn-pill ml-auto disabled:opacity-50 disabled:cursor-not-allowed bg-amber-500 hover:bg-amber-400 text-black border-none"
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-8 py-3 rounded-lg bg-amber-500 text-black font-semibold hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Continue
-            <ArrowRight className="w-4 h-4" />
+            {isSubmitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                Deploy Job
+              </>
+            )}
           </button>
-        )}
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
