@@ -18,12 +18,31 @@ export async function GET(request: NextRequest) {
     await client.connect();
     const db = client.db("runcor");
 
-    // Get all completed jobs claimed by this user (simpler than device matching)
+    // Get all completed jobs claimed by this user
+    // Only count jobs that are either:
+    // 1. Non-deterministic (no expectedOutputHash)
+    // 2. Deterministic with verificationStatus === "verified"
     const userEarnings = await db
       .collection("jobs")
       .find({
         status: "completed",
         claimedBy: username,
+        $or: [
+          { expectedOutputHash: { $exists: false } },
+          { expectedOutputHash: null },
+          { verificationStatus: "verified" }
+        ]
+      })
+      .toArray();
+
+    // Get pending/hold jobs (completed but verification failed or pending)
+    const heldJobs = await db
+      .collection("jobs")
+      .find({
+        status: "completed",
+        claimedBy: username,
+        expectedOutputHash: { $exists: true, $ne: null },
+        verificationStatus: { $in: ["failed", "pending", "manual_review"] }
       })
       .toArray();
 
@@ -33,10 +52,13 @@ export async function GET(request: NextRequest) {
       0
     );
 
-    const pendingPayout = 0; // Will implement later
+    const totalHeld = heldJobs.reduce(
+      (sum, job) => sum + (job.reward || 0),
+      0
+    );
 
     // Format transactions
-    const transactions = userEarnings.map((job) => ({
+    const earningTransactions = userEarnings.map((job) => ({
       id: job._id.toString(),
       type: "earning",
       description: `Job: ${job.title}`,
@@ -46,6 +68,20 @@ export async function GET(request: NextRequest) {
       deviceId: job.deviceId,
     }));
 
+    const heldTransactions = heldJobs.map((job) => ({
+      id: job._id.toString(),
+      type: "held",
+      description: `Job: ${job.title} (Verification ${job.verificationStatus})`,
+      amount: job.reward || 0,
+      status: job.verificationStatus,
+      date: job.completedAt || job.createdAt,
+      deviceId: job.deviceId,
+    }));
+
+    const transactions = [...earningTransactions, ...heldTransactions].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
     // Sort by date (newest first)
     transactions.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -54,9 +90,10 @@ export async function GET(request: NextRequest) {
     await client.close();
 
     return NextResponse.json({
-      balance: totalEarned - pendingPayout,
+      balance: totalEarned,
       totalEarned,
-      pendingPayout,
+      totalHeld,
+      pendingPayout: 0,
       transactions,
     });
   } catch (error) {

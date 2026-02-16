@@ -41,8 +41,23 @@ export async function GET(request: NextRequest) {
     const postedJobs = jobs.filter((j) => j.postedBy?.toLowerCase() === username.toLowerCase());
     const claimedJobs = jobs.filter((j) => j.claimedBy?.toLowerCase() === username.toLowerCase());
     
+    // Only count earnings from jobs that are either:
+    // 1. Non-deterministic (no expectedOutputHash) and completed
+    // 2. Deterministic with verificationStatus === "verified"
     const totalEarnings = claimedJobs
-      .filter((j) => j.status === "completed")
+      .filter((j) => 
+        j.status === "completed" && 
+        (!j.expectedOutputHash || j.verificationStatus === "verified")
+      )
+      .reduce((sum, j) => sum + (j.reward || 0), 0);
+    
+    // Track held earnings (completed but verification failed/pending)
+    const totalHeld = claimedJobs
+      .filter((j) => 
+        j.status === "completed" && 
+        j.expectedOutputHash && 
+        j.verificationStatus !== "verified"
+      )
       .reduce((sum, j) => sum + (j.reward || 0), 0);
     
     const totalSpent = postedJobs.reduce((sum, j) => sum + (j.reward || 0), 0);
@@ -137,6 +152,7 @@ export async function GET(request: NextRequest) {
         pendingJobs: pendingJobs.length,
         runningJobs: runningJobs.length,
         totalEarnings,
+        totalHeld,
         totalSpent,
         successRate: jobs.length > 0 ? Math.round((completedJobs.length / jobs.length) * 100) : 0,
       },
