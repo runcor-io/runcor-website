@@ -98,8 +98,9 @@ export default function JobMonitor() {
         return;
       }
       
-      console.log("[Jobs] Fetching jobs for username:", username);
-      const response = await fetch(`/api/jobs?username=${encodeURIComponent(username)}`);
+      console.log("[Jobs] Fetching jobs (backend will use token)");
+      // No username param - backend uses JWT token for authentication
+      const response = await fetch(`/api/jobs`);
       console.log("[Jobs] Response status:", response.status);
       
       if (response.ok) {

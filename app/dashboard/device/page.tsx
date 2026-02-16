@@ -83,10 +83,9 @@ export default function DeviceControl() {
         return;
       }
       
-      const url = `/api/devices?username=${encodeURIComponent(currentUsername)}`;
-      console.log("[Device] Fetching devices for:", currentUsername);
+      console.log("[Device] Fetching devices (backend uses JWT token)");
       
-      const res = await fetch(url);
+      const res = await fetch("/api/devices");
       if (!res.ok) throw new Error("Failed to fetch devices");
       
       const data = await res.json();

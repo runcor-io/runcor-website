@@ -48,8 +48,8 @@ export default function MissionControl() {
 
   const fetchDashboard = async () => {
     try {
-      // Fetch contractor's jobs (uses username param for $or query)
-      const jobsRes = await fetch(`/api/jobs?username=${encodeURIComponent(username)}`);
+      // Fetch contractor's jobs (backend uses JWT token)
+      const jobsRes = await fetch(`/api/jobs`);
       const allJobs: Job[] = jobsRes.ok ? await jobsRes.json() : [];
       
       // Fetch available devices

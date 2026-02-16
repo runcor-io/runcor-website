@@ -63,13 +63,13 @@ export default function FleetCommand() {
     if (!username) return;
     
     try {
-      // Fetch user's devices
-      const devicesRes = await fetch(`/api/devices?username=${encodeURIComponent(username)}`);
+      // Fetch user's devices (backend uses JWT token)
+      const devicesRes = await fetch(`/api/devices`);
       const devicesData = devicesRes.ok ? await devicesRes.json() : [];
       setDevices(devicesData);
       
-          // Fetch user's jobs (posted OR claimed by this user)
-      const jobsRes = await fetch(`/api/jobs?username=${encodeURIComponent(username)}`);
+      // Fetch user's jobs (backend uses JWT token for authentication)
+      const jobsRes = await fetch(`/api/jobs`);
       console.log("[Fleet] Jobs response:", jobsRes.status);
       const jobsData = jobsRes.ok ? await jobsRes.json() : [];
       console.log("[Fleet] Jobs fetched:", jobsData.length, jobsData.map((j: any) => ({ id: j._id.slice(-8), status: j.status, claimedBy: j.claimedBy })));

@@ -52,7 +52,7 @@ export default function FleetSelection() {
 
   const fetchDevices = async () => {
     try {
-      const response = await fetch("/api/devices");
+      const response = await fetch("/api/devices?mode=all");
       if (response.ok) {
         const data = await response.json();
         setDevices(data);

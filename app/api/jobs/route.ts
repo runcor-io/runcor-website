@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { getToken } from "next-auth/jwt";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/runcor";
 const DB_NAME = "runcor";
@@ -19,10 +20,19 @@ async function getDb() {
 // GET /api/jobs - Get jobs (with filtering)
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user from token
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+    
+    if (!token?.username) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const deviceId = searchParams.get("device_id");
     const status = searchParams.get("status");
-    const username = searchParams.get("username");
     const jobId = searchParams.get("id");
 
     const db = await getDb();
@@ -41,17 +51,19 @@ export async function GET(request: NextRequest) {
     const query: any = {};
     if (deviceId) query.deviceId = deviceId;
     if (status) query.status = status;
-    if (username) {
-      // Show jobs user either posted OR claimed (case-insensitive)
-      const lowerUsername = username.toLowerCase();
-      console.log("[Jobs API] Fetching jobs for:", lowerUsername);
-      query.$or = [
-        { postedBy: { $regex: new RegExp(`^${lowerUsername}$`, 'i') } },
-        { claimedBy: { $regex: new RegExp(`^${lowerUsername}$`, 'i') } }
-      ];
-    }
+    
+    // ALWAYS filter by authenticated user's username
+    // Ignore any username parameter from query - use token instead
+    const authenticatedUsername = (token.username as string).toLowerCase();
+    console.log("[Jobs API] Authenticated user:", authenticatedUsername);
+    
+    query.$or = [
+      { postedBy: { $regex: new RegExp(`^${authenticatedUsername}$`, 'i') } },
+      { claimedBy: { $regex: new RegExp(`^${authenticatedUsername}$`, 'i') } }
+    ];
 
     const results = await jobs.find(query).sort({ createdAt: -1 }).toArray();
+    console.log("[Jobs API] Found jobs:", results.length, "for user:", authenticatedUsername);
     return NextResponse.json(results);
   } catch (error) {
     console.error("Error fetching jobs:", error);

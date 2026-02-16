@@ -62,10 +62,8 @@ export default function Marketplace() {
       console.log("[Marketplace] Available jobs:", jobsData.length);
       setJobs(jobsData);
       
-      // Fetch user's devices
-      const devicesUrl = `/api/devices?username=${encodeURIComponent(username)}`;
-      console.log("[Marketplace] Fetching devices:", devicesUrl);
-      const devicesRes = await fetch(devicesUrl);
+      // Fetch user's devices (backend uses JWT token)
+      const devicesRes = await fetch("/api/devices");
       const devicesData = devicesRes.ok ? await devicesRes.json() : [];
       console.log("[Marketplace] User devices:", devicesData.length, devicesData);
       setDevices(devicesData);

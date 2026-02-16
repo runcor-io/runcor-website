@@ -62,7 +62,7 @@ export default function ActiveOperations() {
   const fetchActiveJobs = async () => {
     try {
       // Fetch contractor's active jobs (not completed/failed)
-      const response = await fetch(`/api/jobs?username=${encodeURIComponent(username)}`);
+      const response = await fetch(`/api/jobs`);
       if (response.ok) {
         const allJobs: Job[] = await response.json();
         const activeJobs = allJobs.filter((j) => 
