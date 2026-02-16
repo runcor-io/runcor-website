@@ -244,8 +244,58 @@ export default function InstallAgent() {
             <div className="card p-8">
               <h2 className="text-xl font-bold mb-6">Download Software Agent</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Option 1: Easy Installer (Python Required) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Option 1: Standalone Windows App */}
+                <div className="p-6 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500/30 flex items-center justify-center">
+                      <Monitor className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold">Windows App</h3>
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Best</span>
+                      </div>
+                      <p className="text-sm text-gray-400">Professional GUI app, no setup</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>Double-click to run</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>Beautiful dark UI</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span>No Python required</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-green-400">
+                      <strong>Standalone:</strong> Just download and run!
+                    </p>
+                  </div>
+
+                  <a
+                    href="/runcor-agent.exe"
+                    download
+                    className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Agent (.exe)
+                  </a>
+
+                  <p className="text-xs text-gray-500 mt-3">
+                    ~12 MB • Windows 10/11 • No installation needed
+                  </p>
+                </div>
+
+                {/* Option 2: Easy Installer (Python Required) */}
                 <div className="p-6 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
@@ -254,7 +304,7 @@ export default function InstallAgent() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold">Easy Installer</h3>
-                        <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Recommended</span>
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">Alt</span>
                       </div>
                       <p className="text-sm text-gray-400">Quick setup for HP Omen & Windows PCs</p>
                     </div>
@@ -277,25 +327,25 @@ export default function InstallAgent() {
 
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4">
                     <p className="text-xs text-amber-400">
-                      <strong>Requires:</strong> Python 3.8+ (most Windows 10/11 PCs have it)
+                      <strong>Requires:</strong> Python 3.8+
                     </p>
                   </div>
 
                   <a
                     href="/downloads/install-runcor.bat"
                     download
-                    className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
+                    className="w-full btn-pill bg-white/10 hover:bg-white/20 text-white border border-white/20 justify-center"
                   >
                     <Download className="w-4 h-4" />
-                    Download Installer (.bat)
+                    Download (.bat)
                   </a>
 
                   <p className="text-xs text-gray-500 mt-3">
-                    Double-click to run. Downloads and runs the agent automatically.
+                    Double-click to run installer script.
                   </p>
                 </div>
 
-                {/* Option 2: Standalone Python Script */}
+                {/* Option 3: Standalone Python Script */}
                 <div className="p-6 rounded-xl bg-white/5 border border-white/10">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
