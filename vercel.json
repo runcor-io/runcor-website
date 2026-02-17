@@ -6,8 +6,8 @@
   "regions": ["iad1"],
   "redirects": [
     {
-      "source": "https://www.runcor.io/:path*",
-      "destination": "https://runcor.io/:path*",
+      "source": "https://runcor.io/:path*",
+      "destination": "https://www.runcor.io/:path*",
       "permanent": true
     }
   ],
