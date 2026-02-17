@@ -304,9 +304,11 @@ export default function DeviceControl() {
               }`}
             >
               <span className={`w-2 h-2 rounded-full ${
-                new Date().getTime() - new Date(device.lastSeen).getTime() < 60000
-                  ? "bg-green-400 animate-pulse"
-                  : "bg-gray-500"
+                device.status?.jobStatus === "offline"
+                  ? "bg-red-500"
+                  : new Date().getTime() - new Date(device.lastSeen).getTime() < 60000
+                    ? "bg-green-400 animate-pulse"
+                    : "bg-gray-500"
               }`} />
               <Cpu className="w-4 h-4 text-gray-400" />
               <span className="text-sm font-medium">{device.specs.cpu.split(" ")[0]}</span>
@@ -331,11 +333,15 @@ export default function DeviceControl() {
                     <h2 className="text-xl font-bold">{selectedDevice.specs.cpu}</h2>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`w-2 h-2 rounded-full ${
-                        new Date().getTime() - new Date(selectedDevice.lastSeen).getTime() < 60000
-                          ? "bg-green-400 animate-pulse"
-                          : "bg-gray-500"
+                        selectedDevice.status?.jobStatus === "offline"
+                          ? "bg-red-500"
+                          : new Date().getTime() - new Date(selectedDevice.lastSeen).getTime() < 60000
+                            ? "bg-green-400 animate-pulse"
+                            : "bg-gray-500"
                       }`} />
-                      <span className="text-sm text-gray-400 capitalize">
+                      <span className={`text-sm capitalize ${
+                        selectedDevice.status?.jobStatus === "offline" ? "text-red-400" : "text-gray-400"
+                      }`}>
                         {selectedDevice.status?.jobStatus || "idle"}
                       </span>
                       <span className="text-gray-600">•</span>

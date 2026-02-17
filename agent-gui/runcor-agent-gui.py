@@ -1285,14 +1285,23 @@ RAM:          {info.get('ram', 'N/A')} GB
             # (Implementation depends on how job is tracked)
             
     def disconnect(self):
-        """Disconnect from server"""
+        """Disconnect from server - mark device as offline, don't delete"""
         if messagebox.askyesno("Disconnect", "Stop the agent and return to login?"):
             STOP_EVENT.set()
             self.log("Disconnecting...")
             
-            # Unregister device
+            # Mark device as offline (don't delete - user may want to see it)
             if DEVICE_ID:
-                self.api_request("DELETE", f"/api/devices?id={DEVICE_ID}")
+                self.api_request("POST", "/api/devices", {
+                    "deviceId": DEVICE_ID,
+                    "status": {
+                        "jobStatus": "offline",
+                        "cpuLoadPercent": 0,
+                        "ramUsedPercent": 0,
+                        "uptimeSeconds": 0
+                    }
+                })
+                self.log("Device marked as offline")
                 
             self.logged_in = False
             self.device_registered = False
@@ -1300,15 +1309,23 @@ RAM:          {info.get('ram', 'N/A')} GB
             self.reset_login_button()
             
     def on_closing(self):
-        """Handle window close"""
+        """Handle window close - mark device as offline"""
         global GUI_OPEN
         GUI_OPEN = False
         STOP_EVENT.set()
         
-        # Unregister device
+        # Mark device as offline (don't delete)
         if DEVICE_ID and self.logged_in:
             try:
-                self.api_request("DELETE", f"/api/devices?id={DEVICE_ID}")
+                self.api_request("POST", "/api/devices", {
+                    "deviceId": DEVICE_ID,
+                    "status": {
+                        "jobStatus": "offline",
+                        "cpuLoadPercent": 0,
+                        "ramUsedPercent": 0,
+                        "uptimeSeconds": 0
+                    }
+                })
             except:
                 pass
                 
