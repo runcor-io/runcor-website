@@ -4,13 +4,6 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["iad1"],
-  "redirects": [
-    {
-      "source": "https://runcor.io/:path*",
-      "destination": "https://www.runcor.io/:path*",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
