@@ -21,6 +21,14 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
+# Import Docker utilities
+try:
+    from docker_utils import DockerManager
+    DOCKER_AVAILABLE = True
+except ImportError:
+    DOCKER_AVAILABLE = False
+    print("Warning: docker_utils.py not found. Docker support disabled.")
+
 # Configuration - Default to production
 API_URL = "https://runcor.io"
 DEVICE_ID = None
@@ -68,10 +76,29 @@ class RunCorAgentGUI:
         self.estopped = False
         self.start_time = time.time()
         
+        # Docker Manager
+        self.docker = None
+        self.use_docker = False
+        if DOCKER_AVAILABLE:
+            self.docker = DockerManager(logger=self.log)
+            self.use_docker = self.docker.available
+            if self.use_docker:
+                self.log("Docker support enabled", "SUCCESS")
+                # Pull base images
+                threading.Thread(target=self._preload_docker_images, daemon=True).start()
+            else:
+                self.log("Docker not detected. Jobs will run natively (less secure).", "WARN")
+        
         # Create widgets
         self.create_styles()
         self.create_widgets()
         self.center_window()
+        
+    def _preload_docker_images(self):
+        """Preload Docker images in background"""
+        if self.docker:
+            self.docker.pull_image("python:3.11-slim")
+            self.log("Docker images ready")
         
     def create_styles(self):
         """Configure professional dark theme styles"""
@@ -600,6 +627,12 @@ class RunCorAgentGUI:
         self.device_info_text.config(state=tk.NORMAL)
         self.device_info_text.delete(1.0, tk.END)
         
+        # Docker status
+        docker_status = "❌ Not Available"
+        if self.docker and self.docker.available:
+            docker_version = self.docker.version or "Installed"
+            docker_status = f"✅ {docker_version[:30]}..." if len(str(docker_version)) > 30 else f"✅ {docker_version}"
+        
         text = f"""Device ID:    {info.get('device_id', 'N/A')}
 CPU:          {info.get('cpu', 'N/A')}
 Cores:        {info.get('cpu_cores', 'N/A')}
@@ -612,6 +645,8 @@ RAM:          {info.get('ram', 'N/A')} GB
         
         text += f"OS:           {info.get('os', 'N/A')}\n"
         text += f"Capabilities: {', '.join(info.get('capabilities', []))}\n"
+        text += f"\n🐳 Docker:     {docker_status}\n"
+        text += f"Execution:    {'Containerized (Secure)' if self.use_docker else 'Native (No Isolation)'}\n"
         
         self.device_info_text.insert(tk.END, text)
         self.device_info_text.config(state=tk.DISABLED)
@@ -962,7 +997,7 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.root.after(0, lambda: self.set_progress(0))
         
     def execute_job(self, job):
-        """Execute a job"""
+        """Execute a job using Docker if available, otherwise native"""
         try:
             job_id = job.get('_id') or job.get('id')
             job_type = job.get('type', 'python')
@@ -972,53 +1007,131 @@ RAM:          {info.get('ram', 'N/A')} GB
             work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
             os.makedirs(work_dir, exist_ok=True)
             
-            self.log(f"Working in: {work_dir}")
-            self.root.after(0, lambda: self.job_details.delete(1.0, tk.END))
-            self.root.after(0, lambda: self.job_details.insert(tk.END, f"Job: {job.get('title')}\nType: {job_type}\nWork Dir: {work_dir}\n\nExecuting...\n"))
+            # Check if we should use Docker
+            use_container = (
+                self.use_docker and 
+                self.docker and 
+                self.docker.available and
+                job_type in ['python', 'powershell']
+            )
             
-            # Write script
-            if job_type == 'python':
-                script_file = os.path.join(work_dir, "job.py")
-                with open(script_file, 'w') as f:
-                    f.write(script)
-                    
-                # Execute
-                self.root.after(0, lambda: self.set_progress(30))
-                result = subprocess.run(
-                    [sys.executable, script_file],
-                    cwd=work_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=300
-                )
-                self.root.after(0, lambda: self.set_progress(80))
+            if use_container:
+                self.log(f"🐳 Executing in Docker container (isolated)")
+                return self._execute_in_docker(job, work_dir)
+            else:
+                self.log(f"⚠️ Executing natively (no container isolation)")
+                return self._execute_native(job, work_dir)
                 
-            elif job_type == 'powershell':
-                script_file = os.path.join(work_dir, "job.ps1")
-                with open(script_file, 'w') as f:
-                    f.write(script)
-                    
-                result = subprocess.run(
-                    ['powershell', '-ExecutionPolicy', 'Bypass', '-File', script_file],
-                    cwd=work_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=300
-                )
-                
-            # Show output
-            output = result.stdout + "\n" + result.stderr
-            self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nOutput:\n{output[:1000]}"))
-            self.root.after(0, lambda: self.set_progress(100))
-            
-            return result.returncode == 0
-            
-        except subprocess.TimeoutExpired:
-            self.log("Job timed out", "ERROR")
-            return False
         except Exception as e:
             self.log(f"Job execution failed: {e}", "ERROR")
             return False
+    
+    def _execute_in_docker(self, job, work_dir):
+        """Execute job in Docker container"""
+        job_id = job.get('_id') or job.get('id')
+        job_type = job.get('type', 'python')
+        script = job.get('script', '')
+        
+        # Get resource limits from job or use defaults
+        cpu_limit = job.get('cpuLimit', '1.0')
+        memory_limit = job.get('memoryLimit', '4g')
+        timeout = job.get('timeout', 300)
+        
+        self.log(f"Resource limits: CPU={cpu_limit}, RAM={memory_limit}")
+        self.log(f"Network: DISABLED (isolated)")
+        
+        self.root.after(0, lambda: self.job_details.delete(1.0, tk.END))
+        self.root.after(0, lambda: self.job_details.insert(tk.END, 
+            f"🐳 DOCKER CONTAINER\n"
+            f"Job: {job.get('title')}\n"
+            f"Type: {job_type}\n"
+            f"Work Dir: {work_dir}\n"
+            f"CPU Limit: {cpu_limit}\n"
+            f"RAM Limit: {memory_limit}\n"
+            f"Network: ISOLATED\n\n"
+            f"Starting container...\n"
+        ))
+        self.root.after(0, lambda: self.set_progress(20))
+        
+        # Run in Docker
+        success, stdout, stderr = self.docker.run_container(
+            job_id=job_id,
+            script_content=script,
+            job_type=job_type,
+            work_dir=work_dir,
+            cpu_limit=str(cpu_limit),
+            memory_limit=memory_limit,
+            timeout=timeout
+        )
+        
+        self.root.after(0, lambda: self.set_progress(90))
+        
+        # Show output
+        output = f"STDOUT:\n{stdout}\n\nSTDERR:\n{stderr}"
+        self.root.after(0, lambda: self.job_details.insert(tk.END, f"\n{output[:2000]}"))
+        self.root.after(0, lambda: self.set_progress(100))
+        
+        if success:
+            self.log("Container execution completed successfully", "SUCCESS")
+        else:
+            self.log("Container execution failed", "ERROR")
+        
+        return success
+    
+    def _execute_native(self, job, work_dir):
+        """Execute job natively (fallback when Docker not available)"""
+        job_id = job.get('_id') or job.get('id')
+        job_type = job.get('type', 'python')
+        script = job.get('script', '')
+        
+        self.root.after(0, lambda: self.job_details.delete(1.0, tk.END))
+        self.root.after(0, lambda: self.job_details.insert(tk.END, 
+            f"⚠️ NATIVE EXECUTION (No Container)\n"
+            f"Job: {job.get('title')}\n"
+            f"Type: {job_type}\n"
+            f"Work Dir: {work_dir}\n\n"
+            f"Warning: Running without container isolation!\n\n"
+            f"Executing...\n"
+        ))
+        
+        # Write and execute script
+        if job_type == 'python':
+            script_file = os.path.join(work_dir, "job.py")
+            with open(script_file, 'w') as f:
+                f.write(script)
+            
+            self.root.after(0, lambda: self.set_progress(30))
+            result = subprocess.run(
+                [sys.executable, script_file],
+                cwd=work_dir,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            self.root.after(0, lambda: self.set_progress(80))
+            
+        elif job_type == 'powershell':
+            script_file = os.path.join(work_dir, "job.ps1")
+            with open(script_file, 'w') as f:
+                f.write(script)
+            
+            result = subprocess.run(
+                ['powershell', '-ExecutionPolicy', 'Bypass', '-File', script_file],
+                cwd=work_dir,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+        else:
+            self.log(f"Unsupported job type: {job_type}", "ERROR")
+            return False
+        
+        # Show output
+        output = result.stdout + "\n" + result.stderr
+        self.root.after(0, lambda: self.job_details.insert(tk.END, f"\nOutput:\n{output[:1000]}"))
+        self.root.after(0, lambda: self.set_progress(100))
+        
+        return result.returncode == 0
             
     def hash_file(self, filepath):
         """Compute SHA256 hash of a file"""
