@@ -76,23 +76,32 @@ class RunCorAgentGUI:
         self.estopped = False
         self.start_time = time.time()
         
-        # Docker Manager
+        # Docker Manager (initialized after UI)
         self.docker = None
         self.use_docker = False
+        
+        # Create widgets first
+        self.create_styles()
+        self.create_widgets()
+        self.center_window()
+        
+        # Now initialize Docker (UI is ready)
+        self._init_docker()
+        
+    def _init_docker(self):
+        """Initialize Docker after UI is ready"""
         if DOCKER_AVAILABLE:
             self.docker = DockerManager(logger=self.log)
             self.use_docker = self.docker.available
             if self.use_docker:
                 self.log("Docker support enabled", "SUCCESS")
-                # Pull base images
+                # Pull base images in background
                 threading.Thread(target=self._preload_docker_images, daemon=True).start()
             else:
                 self.log("Docker not detected. Jobs will run natively (less secure).", "WARN")
-        
-        # Create widgets
-        self.create_styles()
-        self.create_widgets()
-        self.center_window()
+                self.log("Click 'Install Docker Desktop' button in Device panel for secure containers.", "INFO")
+        else:
+            self.log("Docker module not available. Jobs will run natively.", "WARN")
         
     def _preload_docker_images(self):
         """Preload Docker images in background"""
