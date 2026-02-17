@@ -989,10 +989,23 @@ RAM:          {info.get('ram', 'N/A')} GB
         """Check for and execute pending jobs"""
         global CURRENT_JOB
         
+        # Skip if already working on a job
+        if CURRENT_JOB:
+            return
+        
         # Get available jobs
         jobs = self.api_request("GET", "/api/jobs")
         if not jobs or not isinstance(jobs, list):
             return
+        
+        self.log(f"Found {len(jobs)} jobs from API")
+        
+        # Debug: Log job statuses
+        for j in jobs:
+            job_id = j.get('_id') or j.get('id', 'unknown')
+            status = j.get('status', 'unknown')
+            claimed = j.get('claimedBy', 'none')
+            self.log(f"  Job {job_id[:8]}: status={status}, claimedBy={claimed}")
         
         # First, check if we have a job already claimed by us (in case of restart)
         my_claimed = [j for j in jobs if j.get('status') == 'claimed' and 
@@ -1010,6 +1023,7 @@ RAM:          {info.get('ram', 'N/A')} GB
                      not j.get('claimedBy')]
         
         if not available:
+            self.log("No pending jobs available")
             return
             
         job = available[0]
