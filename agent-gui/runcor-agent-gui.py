@@ -1072,11 +1072,15 @@ RAM:          {info.get('ram', 'N/A')} GB
             work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
             actual_hash = self.hash_directory(work_dir)
             
-        completion_data = {"status": "completed" if success else "failed"}
+        completion_data = {
+            "jobId": job_id,
+            "status": "completed" if success else "failed",
+            "deviceId": DEVICE_ID
+        }
         if actual_hash:
             completion_data["actualOutputHash"] = actual_hash
             
-        self.api_request("PATCH", f"/api/jobs/{job_id}", completion_data)
+        self.api_request("PATCH", "/api/jobs", completion_data)
         
         CURRENT_JOB = None
         if success:
@@ -1328,6 +1332,21 @@ RAM:          {info.get('ram', 'N/A')} GB
             self.job_status_card.config(text="E-STOPPED", fg=COLORS['danger'])
             # Kill current job process if running
             # (Implementation depends on how job is tracked)
+            
+            # Notify server to mark job as failed
+            global CURRENT_JOB
+            if CURRENT_JOB:
+                try:
+                    self.api_request("PATCH", "/api/jobs", {
+                        "jobId": CURRENT_JOB,
+                        "status": "failed",
+                        "deviceId": DEVICE_ID,
+                        "error": "Emergency stop triggered by operator"
+                    })
+                    self.log(f"Job {CURRENT_JOB[:8]} marked as failed on server", "INFO")
+                    CURRENT_JOB = None
+                except Exception as e:
+                    self.log(f"Failed to notify server: {e}", "ERROR")
             
     def disconnect(self):
         """Disconnect from server - mark device as offline, don't delete"""
