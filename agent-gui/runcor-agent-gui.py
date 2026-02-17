@@ -993,7 +993,13 @@ RAM:          {info.get('ram', 'N/A')} GB
         if CURRENT_JOB:
             return
         
+        # Check username is set
+        if not USERNAME:
+            self.log("USERNAME not set, cannot poll for jobs", "ERROR")
+            return
+        
         # Get available jobs
+        self.log(f"Polling jobs for user: {USERNAME}")
         jobs = self.api_request("GET", "/api/jobs")
         if not jobs or not isinstance(jobs, list):
             return
@@ -1385,3 +1391,6 @@ def main():
     
 if __name__ == "__main__":
     main()
+
+# Debug: Log username at startup
+self.log(f'Agent username: {USERNAME}')
