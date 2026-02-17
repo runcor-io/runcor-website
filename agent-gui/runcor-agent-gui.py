@@ -384,10 +384,31 @@ class RunCorAgentGUI:
                                        fg=COLORS['text'],
                                        relief='flat',
                                        wrap=tk.WORD,
-                                       height=12)
+                                       height=10)
         self.device_info_text.pack(fill=tk.BOTH, expand=True)
         self.device_info_text.insert(tk.END, "Waiting for device registration...")
         self.device_info_text.config(state=tk.DISABLED)
+        
+        # Docker install button (shown if Docker not available)
+        self.docker_install_frame = tk.Frame(content, bg=COLORS['bg_secondary'])
+        self.docker_install_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        self.docker_install_btn = tk.Button(
+            self.docker_install_frame,
+            text="Install Docker Desktop",
+            bg=COLORS['accent'],
+            fg='white',
+            font=('Segoe UI', 10, 'bold'),
+            relief='flat',
+            cursor='hand2',
+            padx=20,
+            pady=8,
+            command=self.install_docker
+        )
+        self.docker_install_btn.pack(fill=tk.X)
+        
+        # Hide initially, shown in update_device_info if needed
+        self.docker_install_frame.pack_forget()
         
         return panel
         
@@ -628,10 +649,10 @@ class RunCorAgentGUI:
         self.device_info_text.delete(1.0, tk.END)
         
         # Docker status
-        docker_status = "❌ Not Available"
+        docker_status = "Not Available"
         if self.docker and self.docker.available:
             docker_version = self.docker.version or "Installed"
-            docker_status = f"✅ {docker_version[:30]}..." if len(str(docker_version)) > 30 else f"✅ {docker_version}"
+            docker_status = f"OK - {docker_version[:25]}" if len(str(docker_version)) > 25 else f"OK - {docker_version}"
         
         text = f"""Device ID:    {info.get('device_id', 'N/A')}
 CPU:          {info.get('cpu', 'N/A')}
@@ -645,11 +666,17 @@ RAM:          {info.get('ram', 'N/A')} GB
         
         text += f"OS:           {info.get('os', 'N/A')}\n"
         text += f"Capabilities: {', '.join(info.get('capabilities', []))}\n"
-        text += f"\n🐳 Docker:     {docker_status}\n"
+        text += f"\nDocker:       {docker_status}\n"
         text += f"Execution:    {'Containerized (Secure)' if self.use_docker else 'Native (No Isolation)'}\n"
         
         self.device_info_text.insert(tk.END, text)
         self.device_info_text.config(state=tk.DISABLED)
+        
+        # Show/hide Docker install button
+        if not self.use_docker and self.docker and not self.docker.available:
+            self.docker_install_frame.pack(fill=tk.X, pady=(10, 0))
+        else:
+            self.docker_install_frame.pack_forget()
         
     def update_stats(self):
         """Update statistics cards"""
@@ -1162,6 +1189,52 @@ RAM:          {info.get('ram', 'N/A')} GB
             return f"sha256:{combined.hexdigest()}"
         except:
             return None
+    
+    def install_docker(self):
+        """Install Docker Desktop (Windows only)"""
+        if not self.docker:
+            messagebox.showerror("Error", "Docker module not available")
+            return
+        
+        if messagebox.askyesno(
+            "Install Docker Desktop",
+            "This will download and install Docker Desktop (~500MB).\n\n"
+            "Requirements:\n"
+            "- Administrator privileges\n"
+            "- Windows 10/11 Pro or Enterprise\n"
+            "- 5-10 minutes installation time\n\n"
+            "Continue?"
+        ):
+            self.log("Starting Docker Desktop installation...")
+            self.docker_install_btn.config(state=tk.DISABLED, text="Installing... (this may take 5-10 minutes)")
+            
+            def do_install():
+                success = self.docker.install_docker_windows()
+                self.root.after(0, lambda: self._on_docker_install_complete(success))
+            
+            threading.Thread(target=do_install, daemon=True).start()
+    
+    def _on_docker_install_complete(self, success):
+        """Called when Docker installation completes"""
+        if success:
+            messagebox.showinfo(
+                "Installation Complete",
+                "Docker Desktop installed successfully!\n\n"
+                "Please:\n"
+                "1. Restart your computer\n"
+                "2. Start Docker Desktop from the Start Menu\n"
+                "3. Re-run RunCor Agent\n\n"
+                "Jobs will then run in secure containers."
+            )
+            self.docker_install_btn.config(text="Docker Installed - Please Restart", bg=COLORS['success'])
+        else:
+            messagebox.showerror(
+                "Installation Failed",
+                "Docker Desktop installation failed.\n\n"
+                "Please install manually from:\n"
+                "https://www.docker.com/products/docker-desktop"
+            )
+            self.docker_install_btn.config(state=tk.NORMAL, text="Install Docker Desktop")
             
     def toggle_pause(self):
         """Pause/resume job processing"""
