@@ -26,7 +26,7 @@ const platforms = [
     name: "Windows",
     icon: Monitor,
     description: "Windows 10/11 Desktop App",
-    filename: "RunCor-Agent.exe",
+    filename: "runcor-agent-v10.exe",
     size: "~15 MB",
     isGUI: true,
   },

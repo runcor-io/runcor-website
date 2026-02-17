@@ -1035,10 +1035,11 @@ RAM:          {info.get('ram', 'N/A')} GB
         job = available[0]
         job_id = job.get('_id') or job.get('id')
         
-        # Claim the job
+        # Claim the job using POST endpoint
         self.log(f"Claiming job {job_id[:8]}...")
-        claim_result = self.api_request("PATCH", f"/api/jobs/{job_id}", {
+        claim_result = self.api_request("POST", "/api/jobs", {
             "action": "claim",
+            "deviceId": DEVICE_ID,
             "claimedBy": USERNAME
         })
         
