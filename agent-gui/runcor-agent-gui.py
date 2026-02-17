@@ -30,7 +30,7 @@ except ImportError:
     print("Warning: docker_utils.py not found. Docker support disabled.")
 
 # Configuration - Default to production
-API_URL = "https://runcor.io"  # Note: www.runcor.io requires DNS redirect configuration
+API_URL = "https://www.runcor.io"
 DEVICE_ID = None
 USERNAME = None
 AUTH_CREDENTIALS = None
