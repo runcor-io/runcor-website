@@ -30,7 +30,7 @@ except ImportError:
     print("Warning: docker_utils.py not found. Docker support disabled.")
 
 # Configuration - Default to production
-API_URL = "https://runcor.io"
+API_URL = "https://runcor.io"  # Note: www.runcor.io requires DNS redirect configuration
 DEVICE_ID = None
 USERNAME = None
 AUTH_CREDENTIALS = None
@@ -56,12 +56,27 @@ COLORS = {
     'info': '#58a6ff'
 }
 
+# Font sizes - increased for readability
+FONTS = {
+    'title': ('Segoe UI', 28, 'bold'),
+    'header': ('Segoe UI', 16, 'bold'),
+    'subtitle': ('Segoe UI', 13),
+    'body': ('Segoe UI', 11),
+    'body_bold': ('Segoe UI', 11, 'bold'),
+    'small': ('Segoe UI', 10),
+    'mono': ('Consolas', 11),
+    'mono_small': ('Consolas', 10),
+    'button': ('Segoe UI', 12, 'bold'),
+    'stat_number': ('Segoe UI', 32, 'bold'),
+    'stat_label': ('Segoe UI', 11),
+}
+
 class RunCorAgentGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("RunCor Agent")
-        self.root.geometry("1000x750")
-        self.root.minsize(900, 650)
+        self.root.geometry("1200x850")
+        self.root.minsize(1000, 750)
         self.root.configure(bg=COLORS['bg'])
         
         # State
@@ -135,28 +150,28 @@ class RunCorAgentGUI:
         self.style.configure('Title.TLabel',
                            background=COLORS['bg'],
                            foreground=COLORS['text'],
-                           font=('Segoe UI', 24, 'bold'))
+                           font=('Segoe UI', 28, 'bold'))
         
         self.style.configure('Header.TLabel',
                            background=COLORS['bg_secondary'],
                            foreground=COLORS['text'],
-                           font=('Segoe UI', 14, 'bold'))
+                           font=('Segoe UI', 17, 'bold'))
         
         self.style.configure('Subtitle.TLabel',
                            background=COLORS['bg_secondary'],
                            foreground=COLORS['text_secondary'],
-                           font=('Segoe UI', 11))
+                           font=('Segoe UI', 12))
         
         self.style.configure('Status.TLabel',
                            background=COLORS['bg_secondary'],
                            foreground=COLORS['text_secondary'],
-                           font=('Segoe UI', 10))
+                           font=('Segoe UI', 11))
         
         # Button styles
         self.style.configure('Accent.TButton',
                            background=COLORS['accent'],
                            foreground='#ffffff',
-                           font=('Segoe UI', 11, 'bold'),
+                           font=('Segoe UI', 12, 'bold'),
                            padding=(20, 10))
         
         self.style.map('Accent.TButton',
@@ -166,7 +181,7 @@ class RunCorAgentGUI:
         self.style.configure('Secondary.TButton',
                            background=COLORS['bg_tertiary'],
                            foreground=COLORS['text'],
-                           font=('Segoe UI', 10),
+                           font=('Segoe UI', 11),
                            padding=(15, 8))
         
         self.style.map('Secondary.TButton',
@@ -175,7 +190,7 @@ class RunCorAgentGUI:
         self.style.configure('Danger.TButton',
                            background=COLORS['danger'],
                            foreground='#ffffff',
-                           font=('Segoe UI', 10, 'bold'),
+                           font=('Segoe UI', 11, 'bold'),
                            padding=(15, 8))
         
         # Entry styles
@@ -194,7 +209,7 @@ class RunCorAgentGUI:
         self.style.configure('Custom.TLabelframe.Label',
                            background=COLORS['bg_secondary'],
                            foreground=COLORS['accent'],
-                           font=('Segoe UI', 11, 'bold'))
+                           font=('Segoe UI', 12, 'bold'))
         
     def center_window(self):
         """Center the window on screen"""
@@ -244,11 +259,11 @@ class RunCorAgentGUI:
                        bg=COLORS['bg'], fg=COLORS['accent'])
         logo.pack(side=tk.LEFT, padx=(0, 10))
         
-        title = tk.Label(title_frame, text="RUNCOR", font=('Segoe UI', 24, 'bold'),
+        title = tk.Label(title_frame, text="RUNCOR", font=('Segoe UI', 28, 'bold'),
                         bg=COLORS['bg'], fg=COLORS['text'])
         title.pack(side=tk.LEFT)
         
-        subtitle = tk.Label(title_frame, text="AGENT", font=('Segoe UI', 14),
+        subtitle = tk.Label(title_frame, text="AGENT", font=('Segoe UI', 17),
                            bg=COLORS['bg'], fg=COLORS['accent'])
         subtitle.pack(side=tk.LEFT, padx=(5, 0), pady=(8, 0))
         
@@ -259,13 +274,13 @@ class RunCorAgentGUI:
         self.status_frame.pack(side=tk.RIGHT, padx=10)
         
         # Status dot
-        self.status_dot = tk.Canvas(self.status_frame, width=10, height=10, 
+        self.status_dot = tk.Canvas(self.status_frame, width=10, height=14, 
                                    bg=COLORS['bg_tertiary'], highlightthickness=0)
         self.status_dot.pack(side=tk.LEFT, padx=(10, 5))
         self.status_dot.create_oval(2, 2, 8, 8, fill=COLORS['text_secondary'], tags='dot')
         
         self.status_text = tk.Label(self.status_frame, text="Disconnected", 
-                                   font=('Segoe UI', 10),
+                                   font=('Segoe UI', 11),
                                    bg=COLORS['bg_tertiary'], fg=COLORS['text_secondary'])
         self.status_text.pack(side=tk.LEFT, padx=(0, 10), pady=5)
         
@@ -283,12 +298,12 @@ class RunCorAgentGUI:
         inner.pack(fill=tk.BOTH, expand=True, padx=40, pady=40)
         
         # Title
-        title = tk.Label(inner, text="Connect Device", font=('Segoe UI', 18, 'bold'),
+        title = tk.Label(inner, text="Connect Device", font=('Segoe UI', 22, 'bold'),
                         bg=COLORS['bg_secondary'], fg=COLORS['text'])
         title.pack(anchor='w', pady=(0, 5))
         
         subtitle = tk.Label(inner, text="Enter your credentials to join the RunCor network",
-                           font=('Segoe UI', 11),
+                           font=('Segoe UI', 12),
                            bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
         subtitle.pack(anchor='w', pady=(0, 25))
         
@@ -306,7 +321,7 @@ class RunCorAgentGUI:
         # Connect button
         self.login_btn = tk.Button(inner, text="Connect Device", 
                                   bg=COLORS['accent'], fg='white',
-                                  font=('Segoe UI', 12, 'bold'),
+                                  font=('Segoe UI', 14, 'bold'),
                                   relief='flat', cursor='hand2',
                                   padx=30, pady=12,
                                   command=self.on_login)
@@ -318,7 +333,7 @@ class RunCorAgentGUI:
         
         # Hardware preview
         self.hw_preview = tk.Label(inner, text="Ready to detect hardware",
-                                  font=('Segoe UI', 10),
+                                  font=('Segoe UI', 11),
                                   bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
         self.hw_preview.pack(pady=(20, 0))
         
@@ -329,11 +344,11 @@ class RunCorAgentGUI:
         frame = tk.Frame(parent, bg=COLORS['bg_secondary'])
         frame.pack(fill=tk.X, pady=(0, 15))
         
-        lbl = tk.Label(frame, text=label, font=('Segoe UI', 10, 'bold'),
+        lbl = tk.Label(frame, text=label, font=('Segoe UI', 11, 'bold'),
                       bg=COLORS['bg_secondary'], fg=COLORS['text'])
         lbl.pack(anchor='w', pady=(0, 5))
         
-        entry = tk.Entry(frame, font=('Segoe UI', 11),
+        entry = tk.Entry(frame, font=('Segoe UI', 12),
                         bg=COLORS['bg_tertiary'], fg=COLORS['text'],
                         insertbackground=COLORS['text'],
                         relief='flat', highlightthickness=1,
@@ -374,12 +389,12 @@ class RunCorAgentGUI:
         header = tk.Frame(panel, bg=COLORS['bg_tertiary'])
         header.pack(fill=tk.X)
         
-        icon = tk.Label(header, text="💻", font=('Segoe UI', 16),
+        icon = tk.Label(header, text="💻", font=('Segoe UI', 20),
                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         icon.pack(side=tk.LEFT, padx=15, pady=10)
         
         title = tk.Label(header, text="Device Information", 
-                        font=('Segoe UI', 13, 'bold'),
+                        font=('Segoe UI', 15, 'bold'),
                         bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         title.pack(side=tk.LEFT)
         
@@ -388,12 +403,12 @@ class RunCorAgentGUI:
         content.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
         self.device_info_text = tk.Text(content, 
-                                       font=('Consolas', 10),
+                                       font=('Consolas', 11),
                                        bg=COLORS['bg_secondary'], 
                                        fg=COLORS['text'],
                                        relief='flat',
                                        wrap=tk.WORD,
-                                       height=10)
+                                       height=14)
         self.device_info_text.pack(fill=tk.BOTH, expand=True)
         self.device_info_text.insert(tk.END, "Waiting for device registration...")
         self.device_info_text.config(state=tk.DISABLED)
@@ -407,7 +422,7 @@ class RunCorAgentGUI:
             text="Install Docker Desktop",
             bg=COLORS['accent'],
             fg='white',
-            font=('Segoe UI', 10, 'bold'),
+            font=('Segoe UI', 11, 'bold'),
             relief='flat',
             cursor='hand2',
             padx=20,
@@ -452,12 +467,12 @@ class RunCorAgentGUI:
         job_header = tk.Frame(job_details, bg=COLORS['bg_tertiary'])
         job_header.pack(fill=tk.X)
         
-        icon = tk.Label(job_header, text="⚙️", font=('Segoe UI', 16),
+        icon = tk.Label(job_header, text="⚙️", font=('Segoe UI', 20),
                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         icon.pack(side=tk.LEFT, padx=15, pady=10)
         
         title = tk.Label(job_header, text="Current Job",
-                        font=('Segoe UI', 13, 'bold'),
+                        font=('Segoe UI', 15, 'bold'),
                         bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         title.pack(side=tk.LEFT)
         
@@ -467,7 +482,7 @@ class RunCorAgentGUI:
         
         self.job_status_var = tk.StringVar(value="Waiting for jobs...")
         status_lbl = tk.Label(self.progress_frame, textvariable=self.job_status_var,
-                             font=('Segoe UI', 11),
+                             font=('Segoe UI', 12),
                              bg=COLORS['bg_secondary'], fg=COLORS['text'])
         status_lbl.pack(anchor='w', pady=(0, 10))
         
@@ -481,8 +496,8 @@ class RunCorAgentGUI:
         
         # Job details text
         self.job_details = scrolledtext.ScrolledText(
-            job_details, height=10,
-            font=('Consolas', 10),
+            job_details, height=14,
+            font=('Consolas', 11),
             bg=COLORS['bg_secondary'],
             fg=COLORS['text_secondary'],
             relief='flat',
@@ -497,7 +512,7 @@ class RunCorAgentGUI:
         self.pause_btn = tk.Button(btn_frame, text="⏸ Pause",
                                   bg=COLORS['bg_tertiary'],
                                   fg=COLORS['text'],
-                                  font=('Segoe UI', 10),
+                                  font=('Segoe UI', 11),
                                   relief='flat', cursor='hand2',
                                   padx=15, pady=8,
                                   command=self.toggle_pause)
@@ -506,7 +521,7 @@ class RunCorAgentGUI:
         self.estop_btn = tk.Button(btn_frame, text="⏹ E-STOP",
                                   bg=COLORS['danger'],
                                   fg='white',
-                                  font=('Segoe UI', 10, 'bold'),
+                                  font=('Segoe UI', 11, 'bold'),
                                   relief='flat', cursor='hand2',
                                   padx=15, pady=8,
                                   command=self.trigger_estop)
@@ -515,7 +530,7 @@ class RunCorAgentGUI:
         disconnect_btn = tk.Button(btn_frame, text="Disconnect",
                                   bg=COLORS['bg_tertiary'],
                                   fg=COLORS['text_secondary'],
-                                  font=('Segoe UI', 10),
+                                  font=('Segoe UI', 11),
                                   relief='flat', cursor='hand2',
                                   padx=15, pady=8,
                                   command=self.disconnect)
@@ -563,12 +578,12 @@ class RunCorAgentGUI:
         header = tk.Frame(log_frame, bg=COLORS['bg_tertiary'])
         header.pack(fill=tk.X)
         
-        icon = tk.Label(header, text="📋", font=('Segoe UI', 14),
+        icon = tk.Label(header, text="📋", font=('Segoe UI', 17),
                        bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         icon.pack(side=tk.LEFT, padx=15, pady=8)
         
         title = tk.Label(header, text="Agent Log",
-                        font=('Segoe UI', 11, 'bold'),
+                        font=('Segoe UI', 12, 'bold'),
                         bg=COLORS['bg_tertiary'], fg=COLORS['text'])
         title.pack(side=tk.LEFT)
         
@@ -584,8 +599,8 @@ class RunCorAgentGUI:
         
         # Log text
         self.log_text = scrolledtext.ScrolledText(
-            log_frame, height=8,
-            font=('Consolas', 10),
+            log_frame, height=14,
+            font=('Consolas', 11),
             bg=COLORS['bg_secondary'],
             fg=COLORS['text_secondary'],
             relief='flat',
