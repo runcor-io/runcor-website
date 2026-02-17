@@ -993,8 +993,19 @@ RAM:          {info.get('ram', 'N/A')} GB
         jobs = self.api_request("GET", "/api/jobs")
         if not jobs or not isinstance(jobs, list):
             return
+        
+        # First, check if we have a job already claimed by us (in case of restart)
+        my_claimed = [j for j in jobs if j.get('status') == 'claimed' and 
+                      j.get('claimedBy', '').lower() == USERNAME.lower()]
+        
+        if my_claimed:
+            job = my_claimed[0]
+            job_id = job.get('_id') or job.get('id')
+            self.log(f"Resuming claimed job: {job_id[:8]}...")
+            self._execute_claimed_job(job)
+            return
             
-        # Find first available job
+        # Find first available unclaimed job
         available = [j for j in jobs if j.get('status') == 'pending' and 
                      not j.get('claimedBy')]
         
@@ -1014,10 +1025,21 @@ RAM:          {info.get('ram', 'N/A')} GB
         if not claim_result:
             return
             
+        self._execute_claimed_job(job)
+        
+    def _execute_claimed_job(self, job):
+        """Execute a job that's been claimed (new or resumed)"""
+        global CURRENT_JOB
+        
+        job_id = job.get('_id') or job.get('id')
         CURRENT_JOB = job_id
+        
+        # Update UI
         self.root.after(0, lambda: self.job_status_var.set(f"Executing: {job.get('title', 'Job')}"))
         self.root.after(0, lambda: self.job_status_card.config(text="Running", fg=COLORS['accent']))
         self.root.after(0, lambda: self.set_progress(10))
+        
+        self.log(f"Starting job execution: {job.get('title', 'Job')}")
         
         # Execute the job
         success = self.execute_job(job)
@@ -1042,6 +1064,8 @@ RAM:          {info.get('ram', 'N/A')} GB
             self.total_earned += reward
             self.root.after(0, self.update_stats)
             self.log(f"Job completed! Earned ${reward:.2f}", "SUCCESS")
+        else:
+            self.log("Job execution failed", "ERROR")
         
         self.root.after(0, lambda: self.job_status_var.set("Waiting for jobs..."))
         self.root.after(0, lambda: self.job_status_card.config(text="Idle", fg=COLORS['text_secondary']))
