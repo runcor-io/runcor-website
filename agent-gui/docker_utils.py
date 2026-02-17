@@ -66,40 +66,55 @@ class DockerManager:
             self.available = False
             return False
     
-    def install_docker_windows(self) -> bool:
+    def install_docker_windows(self, use_browser_fallback: bool = True) -> bool:
         """
         Install Docker Desktop on Windows
         Returns True if installation successful
         """
         self._log("Starting Docker Desktop installation...")
         
+        installer_url = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+        installer_path = os.path.join(tempfile.gettempdir(), "DockerDesktopInstaller.exe")
+        
         try:
-            # Download Docker Desktop installer
-            installer_url = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
-            installer_path = os.path.join(tempfile.gettempdir(), "DockerDesktopInstaller.exe")
+            # Check if installer already exists
+            if os.path.exists(installer_path):
+                file_size_mb = os.path.getsize(installer_path) / (1024 * 1024)
+                self._log(f"Found existing installer ({file_size_mb:.1f} MB), using it...")
+            else:
+                self._log("Downloading Docker Desktop (approx 500MB)...")
+                self._log("This may take 10-20 minutes depending on your connection.")
+                
+                # Download using PowerShell with extended timeout (30 minutes)
+                download_cmd = [
+                    "powershell",
+                    "-Command",
+                    f"Invoke-WebRequest -Uri '{installer_url}' -OutFile '{installer_path}' -UseBasicParsing"
+                ]
+                
+                try:
+                    result = subprocess.run(
+                        download_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=1800  # 30 minutes
+                    )
+                    
+                    if result.returncode != 0:
+                        self._log(f"Download failed: {result.stderr}", "ERROR")
+                        if use_browser_fallback:
+                            return self._open_docker_download_page()
+                        return False
+                    
+                    self._log("Download complete!")
+                except subprocess.TimeoutExpired:
+                    self._log("Download timed out (30 min). Opening browser for manual download...", "WARN")
+                    if use_browser_fallback:
+                        return self._open_docker_download_page()
+                    return False
             
-            self._log("Downloading Docker Desktop (approx 500MB)...")
-            
-            # Download using PowerShell
-            download_cmd = [
-                "powershell",
-                "-Command",
-                f"Invoke-WebRequest -Uri '{installer_url}' -OutFile '{installer_path}' -UseBasicParsing"
-            ]
-            
-            result = subprocess.run(
-                download_cmd,
-                capture_output=True,
-                text=True,
-                timeout=600
-            )
-            
-            if result.returncode != 0:
-                self._log(f"Download failed: {result.stderr}", "ERROR")
-                return False
-            
-            self._log("Download complete. Installing Docker Desktop...")
-            self._log("This may take a few minutes and require administrator privileges.")
+            self._log("Installing Docker Desktop...")
+            self._log("Administrator privileges required.")
             
             # Run installer silently
             install_cmd = [
@@ -113,12 +128,17 @@ class DockerManager:
                 install_cmd,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=600  # 10 minutes for installation
             )
             
             if result.returncode == 0:
                 self._log("Docker Desktop installed successfully!")
-                self._log("Please restart the RunCor Agent after Docker Desktop starts.")
+                self._log("Please restart your computer, then start Docker Desktop.")
+                # Clean up installer
+                try:
+                    os.remove(installer_path)
+                except:
+                    pass
                 return True
             else:
                 self._log(f"Installation failed: {result.stderr}", "ERROR")
@@ -126,6 +146,22 @@ class DockerManager:
                 
         except Exception as e:
             self._log(f"Installation error: {e}", "ERROR")
+            if use_browser_fallback:
+                return self._open_docker_download_page()
+            return False
+    
+    def _open_docker_download_page(self) -> bool:
+        """Open Docker download page in browser as fallback"""
+        self._log("Opening Docker download page in browser...")
+        try:
+            import webbrowser
+            webbrowser.open("https://www.docker.com/products/docker-desktop")
+            self._log("Browser opened. Please download and install manually.")
+            self._log("After installation, restart RunCor Agent.")
+            return True
+        except Exception as e:
+            self._log(f"Could not open browser: {e}", "ERROR")
+            self._log("Please manually visit: https://www.docker.com/products/docker-desktop")
             return False
     
     def pull_image(self, image: str = "python:3.11-slim") -> bool:
