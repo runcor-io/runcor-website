@@ -313,7 +313,7 @@ class RunCorAgentGUI:
         self.create_form_field(inner, "Server URL", "api_url_entry", default=API_URL)
         
         # Server hint
-        hint = tk.Label(inner, text="Default: https://runcor.io", 
+        hint = tk.Label(inner, text="Default: https://www.runcor.io", 
                        font=('Segoe UI', 9),
                        bg=COLORS['bg_secondary'], fg=COLORS['text_secondary'])
         hint.pack(anchor='w', padx=2)
