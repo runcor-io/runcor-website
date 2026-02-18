@@ -1153,6 +1153,16 @@ RAM:          {info.get('ram', 'N/A')} GB
         ))
         self.root.after(0, lambda: self.set_progress(20))
         
+        # Start progress monitoring thread
+        import threading
+        progress_stop = threading.Event()
+        progress_thread = threading.Thread(
+            target=self._monitor_progress,
+            args=(job_id, work_dir, progress_stop),
+            daemon=True
+        )
+        progress_thread.start()
+        
         # Run in Docker
         success, stdout, stderr = self.docker.run_container(
             job_id=job_id,
@@ -1163,6 +1173,10 @@ RAM:          {info.get('ram', 'N/A')} GB
             memory_limit=memory_limit,
             timeout=timeout
         )
+        
+        # Stop progress monitoring
+        progress_stop.set()
+        progress_thread.join(timeout=2)
         
         self.root.after(0, lambda: self.set_progress(90))
         
@@ -1323,6 +1337,49 @@ RAM:          {info.get('ram', 'N/A')} GB
             self.pause_btn.config(text="⏸ Pause", bg=COLORS['bg_tertiary'])
             self.log("Agent resumed")
             self.job_status_card.config(text="Idle", fg=COLORS['text_secondary'])
+    
+    def _monitor_progress(self, job_id, work_dir, stop_event):
+        """Monitor progress.json and report to API"""
+        import time
+        import json
+        
+        progress_file = os.path.join(work_dir, "output", "progress.json")
+        last_percent = 0
+        
+        while not stop_event.is_set():
+            try:
+                if os.path.exists(progress_file):
+                    with open(progress_file, 'r') as f:
+                        progress = json.load(f)
+                    
+                    percent = progress.get('percent', 0)
+                    stage = progress.get('stage', 'processing')
+                    message = progress.get('message', '')
+                    
+                    # Only update if changed significantly (every 5%)
+                    if percent - last_percent >= 5:
+                        self.root.after(0, lambda p=percent: self.set_progress(p))
+                        self.log(f"Progress: {percent}% - {stage}")
+                        
+                        # Report to API
+                        try:
+                            self.api_request("PATCH", "/api/jobs", {
+                                "jobId": job_id,
+                                "deviceId": DEVICE_ID,
+                                "status": "running",
+                                "progress": percent,
+                                "progressMessage": message
+                            })
+                        except Exception as e:
+                            # Silent fail - don't interrupt job
+                            pass
+                        
+                        last_percent = percent
+                        
+            except Exception as e:
+                pass
+            
+            time.sleep(2)  # Check every 2 seconds
             
     def trigger_estop(self):
         """Emergency stop"""
