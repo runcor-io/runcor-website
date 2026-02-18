@@ -291,6 +291,8 @@ class DockerManager:
             
             self._log(f"Starting container: {container_name}")
             self._log(f"Limits: CPU={cpu_limit}, RAM={memory_limit}, Network=disabled")
+            if work_dir:
+                self._log(f"Work dir mounted: {work_dir} -> /workspace")
             
             # Run container with timeout
             result = subprocess.run(

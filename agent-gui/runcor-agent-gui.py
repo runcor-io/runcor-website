@@ -1130,7 +1130,9 @@ RAM:          {info.get('ram', 'N/A')} GB
                         with zipfile.ZipFile(download_path, 'r') as zip_ref:
                             zip_ref.extractall(input_dir)
                         os.remove(download_path)  # Clean up zip
-                        self.log(f"✅ Extracted input files to /workspace/input/")
+                        # List extracted files for debugging
+                        extracted_files = os.listdir(input_dir)
+                        self.log(f"✅ Extracted {len(extracted_files)} files to input/: {extracted_files[:5]}")
                     else:
                         # Move single file to input dir
                         shutil.move(download_path, os.path.join(input_dir, os.path.basename(input_file_url)))
@@ -1172,11 +1174,23 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.log(f"Network: DISABLED (isolated)")
         
         self.root.after(0, lambda: self.job_details.delete(1.0, tk.END))
+        # Debug: List work_dir contents
+        work_dir_files = []
+        if work_dir and os.path.exists(work_dir):
+            for root, dirs, files in os.walk(work_dir):
+                rel_root = os.path.relpath(root, work_dir)
+                for f in files:
+                    if rel_root == '.':
+                        work_dir_files.append(f)
+                    else:
+                        work_dir_files.append(f"{rel_root}/{f}")
+        
         self.root.after(0, lambda: self.job_details.insert(tk.END, 
             f"🐳 DOCKER CONTAINER\n"
             f"Job: {job.get('title')}\n"
             f"Type: {job_type}\n"
             f"Work Dir: {work_dir}\n"
+            f"Files: {work_dir_files}\n"
             f"CPU Limit: {cpu_limit}\n"
             f"RAM Limit: {memory_limit}\n"
             f"Network: ISOLATED\n\n"
