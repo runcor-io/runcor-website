@@ -15,8 +15,116 @@ import {
   Wallet,
   Shield,
   Hash,
-  FileInput
+  FileInput,
+  X,
+  Loader2
 } from "lucide-react";
+
+// File Upload Component
+function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url: string) => void, uploadedUrl: string }) {
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      setError("File too large (max 50MB)");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+    setFileName(file.name);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        onUploadComplete(data.url);
+      } else {
+        setError(data.error || "Upload failed");
+      }
+    } catch (err) {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearFile = () => {
+    onUploadComplete("");
+    setFileName("");
+    setError("");
+  };
+
+  if (uploadedUrl) {
+    return (
+      <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <span className="text-sm text-emerald-400">{fileName || "File uploaded"}</span>
+        </div>
+        <button
+          type="button"
+          onClick={clearFile}
+          className="p-1 hover:bg-emerald-500/20 rounded"
+        >
+          <X className="w-4 h-4 text-emerald-400" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <label className="flex flex-col items-center justify-center w-full h-32 rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/50 hover:bg-zinc-900/50 transition-all cursor-pointer">
+        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+          {uploading ? (
+            <>
+              <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-2" />
+              <p className="text-sm text-zinc-400">Uploading {fileName}...</p>
+            </>
+          ) : (
+            <>
+              <Upload className="w-8 h-8 text-zinc-500 mb-2" />
+              <p className="text-sm text-zinc-400">
+                <span className="text-amber-500">Click to upload</span> or drag and drop
+              </p>
+              <p className="text-xs text-zinc-600 mt-1">
+                ZIP, JSON, CSV, TXT, Images (max 50MB)
+              </p>
+            </>
+          )}
+        </div>
+        <input
+          type="file"
+          className="hidden"
+          onChange={handleFileChange}
+          disabled={uploading}
+          accept=".zip,.json,.csv,.txt,.jpg,.jpeg,.png,.webp"
+        />
+      </label>
+      {error && (
+        <p className="text-xs text-red-400 mt-2">{error}</p>
+      )}
+      <p className="text-xs text-zinc-500 mt-2">
+        File will be available to the job at /workspace/input/
+      </p>
+    </div>
+  );
+}
 
 export default function CreateJobPage() {
   const router = useRouter();
@@ -282,18 +390,12 @@ print(f"Result: {result}")
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">
                       <FileInput className="w-4 h-4 inline mr-1" />
-                      Input File URL (Optional)
+                      Input File (Optional)
                     </label>
-                    <input
-                      type="url"
-                      value={inputFileUrl}
-                      onChange={(e) => setInputFileUrl(e.target.value)}
-                      placeholder="https://example.com/input-data.zip"
-                      className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                    <FileUpload 
+                      onUploadComplete={(url) => setInputFileUrl(url)}
+                      uploadedUrl={inputFileUrl}
                     />
-                    <p className="text-xs text-zinc-500 mt-1">
-                      URL to input data that will be downloaded before job execution
-                    </p>
                   </div>
                 </div>
               )}
