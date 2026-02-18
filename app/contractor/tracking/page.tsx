@@ -66,24 +66,34 @@ export default function ActiveOperations() {
       const response = await fetch(`/api/jobs`);
       if (response.ok) {
         const allJobs: Job[] = await response.json();
-        // Show active jobs AND failed jobs from last hour
-        const activeJobs = allJobs.filter((j) => {
+        // Show active jobs, failed jobs from last hour, AND recently completed jobs (5 min)
+        let activeJobs = allJobs.filter((j) => {
           if (["pending", "claimed", "running"].includes(j.status)) return true;
           if (j.status === "failed") {
-            // Show failed jobs from last hour
             const failedTime = new Date(j.completedAt || j.updatedAt || Date.now()).getTime();
             const oneHourAgo = Date.now() - 60 * 60 * 1000;
             return failedTime > oneHourAgo;
           }
+          if (j.status === "completed") {
+            // Show completed jobs from last 5 minutes (for tracking completion)
+            const completedTime = new Date(j.completedAt || Date.now()).getTime();
+            const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+            return completedTime > fiveMinutesAgo;
+          }
           return false;
         });
+        
+        // Sort by createdAt (newest first)
+        activeJobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
         setJobs(activeJobs);
         
         // If a job is selected via URL, find it
         if (selectedJobId) {
           const job = allJobs.find((j) => j._id === selectedJobId);
           if (job) setSelectedJob(job);
-        } else if (activeJobs.length > 0 && !selectedJob) {
+        } else if (activeJobs.length > 0) {
+          // Always select the most recent job
           setSelectedJob(activeJobs[0]);
         }
       }
@@ -195,6 +205,15 @@ export default function ActiveOperations() {
           <h1 className="text-2xl font-bold text-white">Active Operations</h1>
           <p className="text-zinc-500 text-sm">
             {jobs.length} active job{jobs.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <button
+          onClick={fetchActiveJobs}
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/50 transition-colors"
+          title="Refresh"
+        >
+          <Loader2 className={`w-5 h-5 text-zinc-400 ${loading ? 'animate-spin' : ''}`} />
+        </button>
           </p>
         </div>
       </div>
