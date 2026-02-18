@@ -67,21 +67,30 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create upload stream
-    const uploadStream = bucket.openUploadStream(file.name, {
-      metadata: {
-        uploadedBy: token.username,
-        uploadedAt: new Date().toISOString(),
-        contentType: file.type,
-        size: file.size
-      }
+    // Create upload stream and wait for it to complete
+    const fileId = await new Promise((resolve, reject) => {
+      const uploadStream = bucket.openUploadStream(file.name, {
+        metadata: {
+          uploadedBy: token.username,
+          uploadedAt: new Date().toISOString(),
+          contentType: file.type,
+          size: file.size
+        }
+      });
+
+      uploadStream.on('error', (err) => {
+        console.error('[Upload API] Stream error:', err);
+        reject(err);
+      });
+
+      uploadStream.on('finish', () => {
+        console.log('[Upload API] Upload finished, fileId:', uploadStream.id);
+        resolve(uploadStream.id);
+      });
+
+      // Write buffer to stream
+      uploadStream.end(buffer);
     });
-
-    // Write buffer to stream
-    uploadStream.end(buffer);
-
-    // Wait for upload to complete
-    const fileId = uploadStream.id;
 
     // Build full URL for the uploaded file
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
