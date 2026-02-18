@@ -1045,8 +1045,10 @@ RAM:          {info.get('ram', 'N/A')} GB
         
         if not claim_result:
             return
-            
-        self._execute_claimed_job(job)
+        
+        # Use the job from claim response (has full data including inputFileUrl)
+        claimed_job = claim_result.get('job', job)
+        self._execute_claimed_job(claimed_job)
         
     def _execute_claimed_job(self, job):
         """Execute a job that's been claimed (new or resumed)"""
