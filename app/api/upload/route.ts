@@ -10,12 +10,12 @@ const MONGODB_URI = process.env.MONGODB_URI || "";
 // GET handler - Download file
 export async function GET(request: NextRequest) {
   let client: MongoClient | null = null;
-  
+
   try {
     // Parse file ID from URL
     const url = new URL(request.url);
     let fileIdStr = url.searchParams.get("id");
-    
+
     if (!fileIdStr) {
       const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
       if (pathMatch) fileIdStr = pathMatch[1];
@@ -42,20 +42,37 @@ export async function GET(request: NextRequest) {
     // Get file info
     const files = await bucket.find({ _id: fileId }).toArray();
     if (!files || files.length === 0) {
+      await client.close();
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
     const fileDoc = files[0];
 
-    // Stream file directly to response (don't buffer)
-    const stream = bucket.openDownloadStream(fileId);
-
-    return new NextResponse(stream as any, {
-      headers: {
-        "Content-Type": fileDoc.metadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`
-      }
+    // Buffer the entire file before closing the connection.
+    // Streaming directly while closing the client in `finally` kills the
+    // stream before it finishes, which is the root cause of the 404/broken
+    // download you were seeing.
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const downloadStream = bucket.openDownloadStream(fileId);
+      downloadStream.on("data", (chunk: Buffer) => chunks.push(chunk));
+      downloadStream.on("end", resolve);
+      downloadStream.on("error", reject);
     });
 
+    // Safe to close now — all data is in memory
+    await client.close();
+    client = null;
+
+    const fileBuffer = Buffer.concat(chunks);
+
+    return new NextResponse(fileBuffer, {
+      headers: {
+        "Content-Type":
+          fileDoc.metadata?.contentType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`,
+        "Content-Length": fileBuffer.length.toString(),
+      },
+    });
   } catch (error) {
     console.error("[Upload API] Download error:", error);
     return NextResponse.json({ error: "Download failed" }, { status: 500 });
@@ -67,10 +84,13 @@ export async function GET(request: NextRequest) {
 // POST handler - Upload file
 export async function POST(request: NextRequest) {
   let client: MongoClient | null = null;
-  
+
   try {
     // Auth check
-    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (!token?.username) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -83,7 +103,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.size > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: "File too large (50MB max)" }, { status: 400 });
+      return NextResponse.json(
+        { error: "File too large (50MB max)" },
+        { status: 400 }
+      );
     }
 
     // Fresh connection per request
@@ -103,8 +126,8 @@ export async function POST(request: NextRequest) {
           uploadedBy: token.username,
           uploadedAt: new Date().toISOString(),
           contentType: file.type,
-          size: file.size
-        }
+          size: file.size,
+        },
       });
 
       uploadStream.on("error", reject);
@@ -115,7 +138,10 @@ export async function POST(request: NextRequest) {
     // Verify file exists immediately after upload
     const verify = await bucket.find({ _id: fileId }).toArray();
     if (!verify || verify.length === 0) {
-      return NextResponse.json({ error: "Upload verification failed" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Upload verification failed" },
+        { status: 500 }
+      );
     }
 
     // Build URL
@@ -128,9 +154,8 @@ export async function POST(request: NextRequest) {
       fileId: fileId.toString(),
       filename: file.name,
       size: file.size,
-      url: fullUrl
+      url: fullUrl,
     });
-
   } catch (error) {
     console.error("[Upload API] Upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
