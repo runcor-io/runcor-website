@@ -213,7 +213,7 @@ print(f"Result: {result}")
           requiredCapabilities,
           deterministic,
           expectedOutputHash: deterministic ? expectedOutputHash : null,
-          inputFileUrl: deterministic ? inputFileUrl : null,
+          inputFileUrl: inputFileUrl || null,
         })
       });
 
