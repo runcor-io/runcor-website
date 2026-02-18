@@ -22,7 +22,7 @@ from PIL import Image
 
 print("=" * 60)
 print("RunCor AI Image Classification")
-print("Model: MobileNetV2 (ImageNet pre-trained)")
+print("Model: MobileNetV2 pre-trained on ImageNet")
 print("=" * 60)
 
 # Paths
@@ -130,8 +130,8 @@ with open(output_file, 'w') as f:
     }, f, indent=2)
 
 print(f"\n{'='*60}")
-print(f"✅ Done! Processed {len(image_files)} images")
-print(f"📁 Results saved to: {output_file}")
+print(f"DONE! Processed {len(image_files)} images")
+print(f"Results saved to: {output_file}")
 print(f"{'='*60}")
 
 # Also create a summary text file
@@ -142,6 +142,6 @@ with open(summary_file, 'w') as f:
     for r in results:
         if r['status'] == 'success':
             f.write(f"{r['filename']}:\n")
-            f.write(f"  → {r['predictions'][0]['label']} ({r['predictions'][0]['confidence']}%)\n\n")
+            f.write(f"  -> {r['predictions'][0]['label']} ({r['predictions'][0]['confidence']}%)\n\n")
 
-print(f"📝 Summary saved to: {summary_file}")
+print(f"Summary saved to: {summary_file}")
