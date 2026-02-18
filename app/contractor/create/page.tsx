@@ -404,8 +404,7 @@ print(f"Result: {result}")
                 onUploadComplete={(url) => setInputFileUrl(url)}
                 uploadedUrl={inputFileUrl}
               />
-          </div>
-        </div>
+            </div>
 
         {/* Script Editor */}
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
