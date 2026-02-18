@@ -25,6 +25,8 @@ function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url:
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
+  const [showDownloadLink, setShowDownloadLink] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState("");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,6 +41,7 @@ function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url:
     setUploading(true);
     setError("");
     setFileName(file.name);
+    setShowDownloadLink(false);
 
     try {
       const formData = new FormData();
@@ -53,6 +56,10 @@ function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url:
 
       if (data.success) {
         onUploadComplete(data.url);
+        setDownloadUrl(data.url);
+        setShowDownloadLink(true);
+        // Auto-hide after 10 seconds
+        setTimeout(() => setShowDownloadLink(false), 10000);
       } else {
         setError(data.error || "Upload failed");
       }
@@ -67,22 +74,51 @@ function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url:
     onUploadComplete("");
     setFileName("");
     setError("");
+    setShowDownloadLink(false);
+    setDownloadUrl("");
   };
 
   if (uploadedUrl) {
     return (
-      <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CheckCircle className="w-5 h-5 text-emerald-400" />
-          <span className="text-sm text-emerald-400">{fileName || "File uploaded"}</span>
+      <div className="space-y-3">
+        {showDownloadLink && (
+          <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-blue-400" />
+              <span className="text-sm font-semibold text-blue-400">Upload Successful!</span>
+            </div>
+            <p className="text-xs text-zinc-400 mb-2">Test your download link:</p>
+            <div className="flex items-center gap-2">
+              <input 
+                type="text" 
+                value={downloadUrl} 
+                readOnly 
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300"
+              />
+              <a 
+                href={downloadUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors"
+              >
+                Download
+              </a>
+            </div>
+          </div>
+        )}
+        <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm text-emerald-400">{fileName || "File uploaded"}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearFile}
+            className="p-1 hover:bg-emerald-500/20 rounded"
+          >
+            <X className="w-4 h-4 text-emerald-400" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={clearFile}
-          className="p-1 hover:bg-emerald-500/20 rounded"
-        >
-          <X className="w-4 h-4 text-emerald-400" />
-        </button>
       </div>
     );
   }
