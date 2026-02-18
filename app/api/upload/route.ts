@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Create upload stream and wait for it to complete
-    const fileId = await new Promise((resolve, reject) => {
+    const fileId: ObjectId = await new Promise((resolve, reject) => {
       const uploadStream = bucket.openUploadStream(file.name, {
         metadata: {
           uploadedBy: token.username,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
       uploadStream.on('finish', () => {
         console.log('[Upload API] Upload finished, fileId:', uploadStream.id);
-        resolve(uploadStream.id);
+        resolve(uploadStream.id as ObjectId);
       });
 
       // Write buffer to stream
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     // Build full URL for the uploaded file
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const host = request.headers.get('host') || 'www.runcor.io';
-    const fullUrl = `${protocol}://${host}/api/upload/${fileId}`;
+    const fullUrl = `${protocol}://${host}/api/upload/${fileId.toString()}`;
 
     return NextResponse.json({
       success: true,
