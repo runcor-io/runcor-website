@@ -2,73 +2,106 @@ import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, GridFSBucket, ObjectId } from "mongodb";
 import { getToken } from "next-auth/jwt";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/runcor";
-const DB_NAME = "runcor";
+const MONGODB_URI = process.env.MONGODB_URI || "";
 
-let client: MongoClient | null = null;
+// GET handler - Download file
+export async function GET(request: NextRequest) {
+  let client: MongoClient | null = null;
+  
+  try {
+    // Parse file ID from URL
+    const url = new URL(request.url);
+    let fileIdStr = url.searchParams.get("id");
+    
+    if (!fileIdStr) {
+      const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
+      if (pathMatch) fileIdStr = pathMatch[1];
+    }
 
-async function getDb() {
-  if (!client) {
+    if (!fileIdStr) {
+      return NextResponse.json({ error: "File ID required" }, { status: 400 });
+    }
+
+    // Validate ObjectId
+    let fileId: ObjectId;
+    try {
+      fileId = new ObjectId(fileIdStr);
+    } catch {
+      return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
+    }
+
+    // Fresh connection per request (serverless-safe)
     client = new MongoClient(MONGODB_URI);
     await client.connect();
+    const db = client.db("runcor");
+    const bucket = new GridFSBucket(db, { bucketName: "uploads" });
+
+    // Get file info
+    const files = await bucket.find({ _id: fileId }).toArray();
+    if (!files || files.length === 0) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+    const fileDoc = files[0];
+
+    // Stream file to response
+    const downloadStream = bucket.openDownloadStream(fileId);
+    
+    const chunks: Buffer[] = [];
+    for await (const chunk of downloadStream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": fileDoc.metadata?.contentType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`,
+        "Content-Length": buffer.length.toString()
+      }
+    });
+
+  } catch (error) {
+    console.error("[Upload API] Download error:", error);
+    return NextResponse.json({ error: "Download failed" }, { status: 500 });
+  } finally {
+    if (client) await client.close();
   }
-  return client.db(DB_NAME);
 }
 
-// POST /api/upload - Upload a file to GridFS
+// POST handler - Upload file
 export async function POST(request: NextRequest) {
+  let client: MongoClient | null = null;
+  
   try {
-    // Check authentication
-    const token = await getToken({ 
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-    
+    // Auth check
+    const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET });
     if (!token?.username) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Get file
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ error: "No file" }, { status: 400 });
     }
 
-    // Validate file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: "File too large (max 50MB)" }, { status: 400 });
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: "File too large (50MB max)" }, { status: 400 });
     }
 
-    // Validate file type
-    const allowedTypes = [
-      'application/zip',
-      'application/x-zip-compressed',
-      'application/octet-stream',
-      'text/plain',
-      'application/json',
-      'text/csv',
-      'image/jpeg',
-      'image/png',
-      'image/webp'
-    ];
-    
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.zip')) {
-      return NextResponse.json({ 
-        error: "Invalid file type. Allowed: ZIP, JSON, CSV, TXT, images" 
-      }, { status: 400 });
-    }
-
-    const db = await getDb();
+    // Fresh connection per request
+    client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const db = client.db("runcor");
     const bucket = new GridFSBucket(db, { bucketName: "uploads" });
 
-    // Convert File to Buffer
+    // Convert to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create upload stream and wait for it to complete
-    const fileId: ObjectId = await new Promise((resolve, reject) => {
+    // Upload with promise wrapper
+    const fileId = await new Promise<ObjectId>((resolve, reject) => {
       const uploadStream = bucket.openUploadStream(file.name, {
         metadata: {
           uploadedBy: token.username,
@@ -78,35 +111,20 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      let resolvedId: ObjectId | null = null;
-
-      uploadStream.on('error', (err) => {
-        console.error('[Upload API] Stream error:', err);
-        reject(err);
-      });
-
-      uploadStream.on('finish', () => {
-        console.log('[Upload API] Stream finished, id:', uploadStream.id);
-        resolvedId = uploadStream.id as ObjectId;
-      });
-
-      // Use 'close' event which fires after MongoDB confirms write
-      uploadStream.on('close', () => {
-        console.log('[Upload API] Stream closed, file persisted');
-        if (resolvedId) {
-          resolve(resolvedId);
-        } else {
-          reject(new Error('Stream closed without fileId'));
-        }
-      });
-
-      // Write buffer to stream
+      uploadStream.on("error", reject);
+      uploadStream.on("finish", () => resolve(uploadStream.id));
       uploadStream.end(buffer);
     });
 
-    // Build full URL for the uploaded file
-    const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const host = request.headers.get('host') || 'www.runcor.io';
+    // Verify file exists immediately after upload
+    const verify = await bucket.find({ _id: fileId }).toArray();
+    if (!verify || verify.length === 0) {
+      return NextResponse.json({ error: "Upload verification failed" }, { status: 500 });
+    }
+
+    // Build URL
+    const protocol = request.headers.get("x-forwarded-proto") || "https";
+    const host = request.headers.get("host") || "www.runcor.io";
     const fullUrl = `${protocol}://${host}/api/upload/${fileId.toString()}`;
 
     return NextResponse.json({
@@ -118,71 +136,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("[Upload API] Upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
-  }
-}
-
-// GET /api/upload/:id - Download a file using GridFSBucket
-export async function GET(request: NextRequest) {
-  try {
-    const url = new URL(request.url);
-    
-    const { searchParams } = url;
-    
-    // Support both /api/upload?id=xxx and /api/upload/xxx formats
-    let fileIdStr = searchParams.get("id");
-    
-    // If no query param, try to extract from path (e.g., /api/upload/xxx)
-    if (!fileIdStr) {
-      const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
-      if (pathMatch) {
-        fileIdStr = pathMatch[1];
-      }
-    }
-
-    if (!fileIdStr) {
-      return NextResponse.json({ error: "File ID required" }, { status: 400 });
-    }
-
-    // Validate ObjectId format
-    let fileId: ObjectId;
-    try {
-      fileId = new ObjectId(fileIdStr);
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid file ID format" }, { status: 400 });
-    }
-
-    const db = await getDb();
-    const bucket = new GridFSBucket(db, { bucketName: "uploads" });
-
-    // Get file info first using GridFSBucket's file collection
-    const files = await db.collection("uploads.files").findOne({ _id: fileId });
-    
-    if (!files) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-
-    // Create download stream - GridFSBucket handles chunks automatically
-    const downloadStream = bucket.openDownloadStream(fileId);
-
-    // Collect all chunks
-    const chunks: Buffer[] = [];
-    for await (const chunk of downloadStream) {
-      chunks.push(chunk);
-    }
-    const buffer = Buffer.concat(chunks);
-
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": files.metadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${files.filename}"`,
-        "Content-Length": buffer.length.toString()
-      }
-    });
-
-  } catch (error) {
-    console.error("Download error:", error);
-    return NextResponse.json({ error: "Download failed" }, { status: 500 });
+  } finally {
+    if (client) await client.close();
   }
 }
