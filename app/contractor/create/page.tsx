@@ -405,8 +405,10 @@ print(f"Result: {result}")
                 uploadedUrl={inputFileUrl}
               />
             </div>
+          </div>
+        </div>
 
-        {/* Script Editor */}
+        {/* Script Editor -->
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Upload className="w-5 h-5 text-amber-500" />
