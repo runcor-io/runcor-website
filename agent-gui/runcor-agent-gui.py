@@ -1102,10 +1102,41 @@ RAM:          {info.get('ram', 'N/A')} GB
             job_id = job.get('_id') or job.get('id')
             job_type = job.get('type', 'python')
             script = job.get('script', '')
+            input_file_url = job.get('inputFileUrl', '')
             
             # Create work directory
             work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
             os.makedirs(work_dir, exist_ok=True)
+            
+            # Create input/output subdirectories
+            input_dir = os.path.join(work_dir, "input")
+            output_dir = os.path.join(work_dir, "output")
+            os.makedirs(input_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Download input file if provided
+            if input_file_url:
+                self.log(f"📥 Downloading input file...")
+                try:
+                    import urllib.request
+                    import zipfile
+                    
+                    # Download to temp location
+                    download_path = os.path.join(work_dir, "input.zip")
+                    urllib.request.urlretrieve(input_file_url, download_path)
+                    
+                    # Extract if it's a zip
+                    if download_path.endswith('.zip'):
+                        with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                            zip_ref.extractall(input_dir)
+                        os.remove(download_path)  # Clean up zip
+                        self.log(f"✅ Extracted input files to /workspace/input/")
+                    else:
+                        # Move single file to input dir
+                        shutil.move(download_path, os.path.join(input_dir, os.path.basename(input_file_url)))
+                        
+                except Exception as e:
+                    self.log(f"⚠️ Failed to download input: {e}", "WARN")
             
             # Check if we should use Docker
             use_container = (

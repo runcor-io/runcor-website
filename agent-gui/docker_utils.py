@@ -259,9 +259,9 @@ class DockerManager:
             # Prepare volume mounts
             volumes = [f"{temp_script_dir}:/app:ro"]
             
-            # Mount work directory if provided
+            # Mount work directory if provided (at /workspace for compatibility)
             if work_dir and os.path.exists(work_dir):
-                volumes.append(f"{work_dir}:/work:rw")
+                volumes.append(f"{work_dir}:/workspace:rw")
             
             # Build docker run command with security options
             cmd = [
@@ -283,7 +283,7 @@ class DockerManager:
                 cmd.extend(["-v", volumes[1]])
             
             # Add working directory
-            cmd.extend(["-w", "/work" if work_dir else "/app"])
+            cmd.extend(["-w", "/workspace" if work_dir else "/app"])
             
             # Add image and command
             cmd.append(image)

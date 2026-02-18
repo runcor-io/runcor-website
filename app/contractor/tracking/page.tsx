@@ -61,13 +61,21 @@ export default function ActiveOperations() {
 
   const fetchActiveJobs = async () => {
     try {
-      // Fetch contractor's active jobs (not completed/failed)
+      // Fetch contractor's active and recently failed jobs
       const response = await fetch(`/api/jobs`);
       if (response.ok) {
         const allJobs: Job[] = await response.json();
-        const activeJobs = allJobs.filter((j) => 
-          ["pending", "claimed", "running"].includes(j.status)
-        );
+        // Show active jobs AND failed jobs from last hour
+        const activeJobs = allJobs.filter((j) => {
+          if (["pending", "claimed", "running"].includes(j.status)) return true;
+          if (j.status === "failed") {
+            // Show failed jobs from last hour
+            const failedTime = new Date(j.completedAt || j.updatedAt || 0).getTime();
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+            return failedTime > oneHourAgo;
+          }
+          return false;
+        });
         setJobs(activeJobs);
         
         // If a job is selected via URL, find it
@@ -214,6 +222,7 @@ export default function ActiveOperations() {
                 <span className={`px-2 py-1 rounded-full text-[10px] uppercase ${
                   job.status === "running" ? "bg-cyan-500/20 text-cyan-400" :
                   job.status === "claimed" ? "bg-amber-500/20 text-amber-400" :
+                  job.status === "failed" ? "bg-red-500/20 text-red-400" :
                   "bg-purple-500/20 text-purple-400"
                 }`}>
                   {job.status}
@@ -246,6 +255,7 @@ export default function ActiveOperations() {
                   <span className={`px-2 py-1 rounded-full text-xs ${
                     selectedJob.status === "running" ? "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400" :
                     selectedJob.status === "claimed" ? "bg-amber-500/10 border border-amber-500/30 text-amber-400" :
+                    selectedJob.status === "failed" ? "bg-red-500/10 border border-red-500/30 text-red-400" :
                     "bg-purple-500/10 border border-purple-500/30 text-purple-400"
                   }`}>
                     {selectedJob.status}
@@ -261,6 +271,45 @@ export default function ActiveOperations() {
                 <p className="text-xs text-zinc-500">tokens</p>
               </div>
             </div>
+
+            {/* Failed Job Notification */}
+            {selectedJob.status === "failed" && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <XCircle className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-red-400 mb-1">Job Failed</h3>
+                    <p className="text-zinc-400 text-sm mb-3">
+                      The job execution failed. No payment was sent to the provider. 
+                      Your tokens have been refunded to your wallet.
+                    </p>
+                    {selectedJob.error && (
+                      <div className="bg-black/50 rounded-lg p-3 mt-2">
+                        <p className="text-xs text-zinc-500 mb-1">Error:</p>
+                        <p className="text-xs text-red-400 font-mono">{selectedJob.error}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 mt-4">
+                      <Link
+                        href="/contractor/create"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Retry Job
+                      </Link>
+                      <Link
+                        href="/contractor/results"
+                        className="text-zinc-500 text-sm hover:text-zinc-400 transition-colors"
+                      >
+                        View All Results →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Progress Pipeline */}
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6">
