@@ -83,12 +83,17 @@ export async function POST(request: NextRequest) {
     // Wait for upload to complete
     const fileId = uploadStream.id;
 
+    // Build full URL for the uploaded file
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host') || 'www.runcor.io';
+    const fullUrl = `${protocol}://${host}/api/upload/${fileId}`;
+
     return NextResponse.json({
       success: true,
       fileId: fileId.toString(),
       filename: file.name,
       size: file.size,
-      url: `/api/upload/${fileId}`
+      url: fullUrl
     });
 
   } catch (error) {
