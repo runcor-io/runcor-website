@@ -82,17 +82,17 @@ def main():
     output_dir = "demo_images"
     os.makedirs(output_dir, exist_ok=True)
     
-    print("🎨 Generating sample images for RunCor demo...")
+    print("Generating sample images for RunCor demo...")
     print()
     
     for filename, color, label in dataset:
         filepath = os.path.join(output_dir, filename)
         img = create_placeholder(filename, color, label)
         img.save(filepath, quality=85)
-        print(f"  ✓ Created: {filename} ({color} - {label})")
+        print(f"  Created: {filename} ({color} - {label})")
     
     print()
-    print(f"✅ Generated {len(dataset)} sample images in '{output_dir}/'")
+    print(f"Generated {len(dataset)} sample images in '{output_dir}/'")
     print()
     print("Next steps:")
     print("  1. ZIP the images:  cd demo_images && zip ../demo_input.zip *.jpg")
