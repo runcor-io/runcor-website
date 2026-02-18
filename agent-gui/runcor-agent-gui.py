@@ -1499,6 +1499,3 @@ def main():
     
 if __name__ == "__main__":
     main()
-
-# Debug: Log username at startup
-self.log(f'Agent username: {USERNAME}')
