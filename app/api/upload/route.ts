@@ -105,8 +105,19 @@ export async function POST(request: NextRequest) {
 // GET /api/upload/:id - Download a file
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const fileId = searchParams.get("id");
+    const url = new URL(request.url);
+    const { searchParams } = url;
+    
+    // Support both /api/upload?id=xxx and /api/upload/xxx formats
+    let fileId = searchParams.get("id");
+    
+    // If no query param, try to extract from path (e.g., /api/upload/xxx)
+    if (!fileId) {
+      const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
+      if (pathMatch) {
+        fileId = pathMatch[1];
+      }
+    }
 
     if (!fileId) {
       return NextResponse.json({ error: "File ID required" }, { status: 400 });
