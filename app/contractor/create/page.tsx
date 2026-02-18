@@ -408,12 +408,33 @@ print(f"Result: {result}")
           </div>
         </div>
 
-        {/* Script Editor -->
+        {/* Script Editor */}
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Upload className="w-5 h-5 text-amber-500" />
-            Python Script
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Code className="w-5 h-5 text-amber-500" />
+              Python Script
+            </h2>
+            <label className="text-sm text-zinc-400 cursor-pointer hover:text-amber-400 transition-colors">
+              <Upload className="w-4 h-4 inline mr-1" />
+              Upload .py file
+              <input
+                type="file"
+                accept=".py"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      setScript(e.target?.result as string);
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+              />
+            </label>
+          </div>
           
           <textarea
             value={script}
@@ -425,7 +446,8 @@ print(f"Result: {result}")
           />
           
           <p className="mt-2 text-xs text-zinc-500">
-            The script will run in an isolated temporary directory. Output files under 1MB will be captured.
+            The script will run in an isolated temporary directory. Output files under 1MB will be captured. 
+            Or <span className="text-amber-500">upload a .py file</span> using the button above.
           </p>
         </div>
 
