@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, GridFSBucket, ObjectId } from "mongodb";
 import { getToken } from "next-auth/jwt";
 
+// Prevent caching - ensure fresh DB lookup every time
+export const dynamic = "force-dynamic";
+
 const MONGODB_URI = process.env.MONGODB_URI || "";
 
 // GET handler - Download file
@@ -43,20 +46,13 @@ export async function GET(request: NextRequest) {
     }
     const fileDoc = files[0];
 
-    // Stream file to response
-    const downloadStream = bucket.openDownloadStream(fileId);
-    
-    const chunks: Buffer[] = [];
-    for await (const chunk of downloadStream) {
-      chunks.push(chunk);
-    }
-    const buffer = Buffer.concat(chunks);
+    // Stream file directly to response (don't buffer)
+    const stream = bucket.openDownloadStream(fileId);
 
-    return new NextResponse(buffer, {
+    return new NextResponse(stream as any, {
       headers: {
         "Content-Type": fileDoc.metadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`,
-        "Content-Length": buffer.length.toString()
+        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`
       }
     });
 
