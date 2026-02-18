@@ -29,6 +29,7 @@ interface Job {
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
+  updatedAt?: string;
   logs: string[];
   error?: string;
   result?: any;
@@ -70,7 +71,7 @@ export default function ActiveOperations() {
           if (["pending", "claimed", "running"].includes(j.status)) return true;
           if (j.status === "failed") {
             // Show failed jobs from last hour
-            const failedTime = new Date(j.completedAt || j.updatedAt || 0).getTime();
+            const failedTime = new Date(j.completedAt || j.updatedAt || Date.now()).getTime();
             const oneHourAgo = Date.now() - 60 * 60 * 1000;
             return failedTime > oneHourAgo;
           }
