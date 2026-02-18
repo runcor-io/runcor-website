@@ -1082,7 +1082,12 @@ RAM:          {info.get('ram', 'N/A')} GB
         if actual_hash:
             completion_data["actualOutputHash"] = actual_hash
             
-        self.api_request("PATCH", "/api/jobs", completion_data)
+        # Send completion status to server
+        patch_result = self.api_request("PATCH", "/api/jobs", completion_data)
+        if patch_result:
+            self.log(f"✅ Server notified: job marked as {completion_data['status']}")
+        else:
+            self.log(f"⚠️ Failed to notify server of job completion", "WARN")
         
         CURRENT_JOB = None
         if success:
@@ -1122,31 +1127,43 @@ RAM:          {info.get('ram', 'N/A')} GB
             
             # Download input file if provided
             if input_file_url:
-                self.log(f"📥 Downloading input file...")
+                self.log(f"📥 DOWNLOADING input from: {input_file_url[:60]}...")
                 try:
                     import urllib.request
                     import zipfile
                     
                     # Download to temp location
                     download_path = os.path.join(work_dir, "input.zip")
+                    self.log(f"   Saving to: {download_path}")
                     urllib.request.urlretrieve(input_file_url, download_path)
                     
-                    # Extract if it's a zip
-                    if download_path.endswith('.zip'):
-                        with zipfile.ZipFile(download_path, 'r') as zip_ref:
-                            zip_ref.extractall(input_dir)
-                        os.remove(download_path)  # Clean up zip
-                        # List extracted files for debugging
-                        extracted_files = os.listdir(input_dir)
-                        self.log(f"✅ Extracted {len(extracted_files)} files to input/: {extracted_files[:5]}")
+                    # Check if file was downloaded
+                    if os.path.exists(download_path):
+                        file_size = os.path.getsize(download_path)
+                        self.log(f"   Downloaded: {file_size} bytes")
+                        
+                        # Extract if it's a zip
+                        if download_path.endswith('.zip'):
+                            self.log(f"   Extracting ZIP...")
+                            with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                                zip_ref.extractall(input_dir)
+                            os.remove(download_path)  # Clean up zip
+                            # List extracted files for debugging
+                            extracted_files = os.listdir(input_dir)
+                            self.log(f"✅ EXTRACTED {len(extracted_files)} files: {extracted_files[:10]}")
+                        else:
+                            # Move single file to input dir
+                            shutil.move(download_path, os.path.join(input_dir, os.path.basename(input_file_url)))
+                            self.log(f"✅ SAVED single file: {os.path.basename(input_file_url)}")
                     else:
-                        # Move single file to input dir
-                        shutil.move(download_path, os.path.join(input_dir, os.path.basename(input_file_url)))
+                        self.log(f"⚠️ Download failed - file not found", "WARN")
                         
                 except Exception as e:
-                    self.log(f"⚠️ Failed to download input: {e}", "WARN")
+                    self.log(f"⚠️ DOWNLOAD ERROR: {e}", "ERROR")
+                    import traceback
+                    self.log(traceback.format_exc(), "ERROR")
             else:
-                self.log("DEBUG: No inputFileUrl provided in job")
+                self.log("ℹ️ No inputFileUrl provided in job")
             
             # Check if we should use Docker
             use_container = (

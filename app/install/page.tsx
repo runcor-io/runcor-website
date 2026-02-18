@@ -282,7 +282,7 @@ export default function InstallAgent() {
                   </div>
 
                   <a
-                    href="/downloads/runcor-agent-v17.exe"
+                    href="/downloads/runcor-agent-v18.exe"
                     download
                     className="w-full btn-pill bg-cyan-500 hover:bg-cyan-400 text-black border-none justify-center"
                   >
