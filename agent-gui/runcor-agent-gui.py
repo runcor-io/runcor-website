@@ -1104,6 +1104,10 @@ RAM:          {info.get('ram', 'N/A')} GB
             script = job.get('script', '')
             input_file_url = job.get('inputFileUrl', '')
             
+            # Debug: Log job data
+            self.log(f"DEBUG Job fields: {list(job.keys())}")
+            self.log(f"DEBUG inputFileUrl: {input_file_url if input_file_url else 'NOT SET'}")
+            
             # Create work directory
             work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
             os.makedirs(work_dir, exist_ok=True)
@@ -1139,6 +1143,8 @@ RAM:          {info.get('ram', 'N/A')} GB
                         
                 except Exception as e:
                     self.log(f"⚠️ Failed to download input: {e}", "WARN")
+            else:
+                self.log("DEBUG: No inputFileUrl provided in job")
             
             # Check if we should use Docker
             use_container = (
