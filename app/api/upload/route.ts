@@ -2,100 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, GridFSBucket, ObjectId } from "mongodb";
 import { getToken } from "next-auth/jwt";
 
-// Prevent caching - ensure fresh DB lookup every time
 export const dynamic = "force-dynamic";
 
 const MONGODB_URI = process.env.MONGODB_URI || "";
 
-// GET handler - Download file
-export async function GET(request: NextRequest) {
-  // Log immediately to confirm route is hit
-  console.log("[Upload API] GET request received:", request.url);
-  
-  let client: MongoClient | null = null;
-
-  try {
-    // Parse file ID from URL
-    const url = new URL(request.url);
-    console.log("[Upload API] Pathname:", url.pathname);
-    console.log("[Upload API] Search params:", url.searchParams.toString());
-    
-    let fileIdStr = url.searchParams.get("id");
-    console.log("[Upload API] Query param id:", fileIdStr);
-
-    if (!fileIdStr) {
-      const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
-      if (pathMatch) {
-        fileIdStr = pathMatch[1];
-        console.log("[Upload API] Extracted from path:", fileIdStr);
-      }
-    }
-
-    if (!fileIdStr) {
-      return NextResponse.json({ error: "File ID required" }, { status: 400 });
-    }
-
-    // Validate ObjectId
-    let fileId: ObjectId;
-    try {
-      fileId = new ObjectId(fileIdStr);
-    } catch {
-      return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
-    }
-
-    // Fresh connection per request (serverless-safe)
-    client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    const db = client.db("runcor");
-    const bucket = new GridFSBucket(db, { bucketName: "uploads" });
-
-    // Get file info
-    console.log("[Upload API] Looking for file in GridFS:", fileId.toString());
-    const files = await bucket.find({ _id: fileId }).toArray();
-    console.log("[Upload API] Found files:", files.length);
-    
-    if (!files || files.length === 0) {
-      console.log("[Upload API] File NOT found in GridFS");
-      await client.close();
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-    const fileDoc = files[0];
-
-    // Buffer the entire file before closing the connection.
-    // Streaming directly while closing the client in `finally` kills the
-    // stream before it finishes, which is the root cause of the 404/broken
-    // download you were seeing.
-    const chunks: Buffer[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const downloadStream = bucket.openDownloadStream(fileId);
-      downloadStream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      downloadStream.on("end", resolve);
-      downloadStream.on("error", reject);
-    });
-
-    // Safe to close now — all data is in memory
-    await client.close();
-    client = null;
-
-    const fileBuffer = Buffer.concat(chunks);
-
-    return new NextResponse(fileBuffer, {
-      headers: {
-        "Content-Type":
-          fileDoc.metadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`,
-        "Content-Length": fileBuffer.length.toString(),
-      },
-    });
-  } catch (error) {
-    console.error("[Upload API] Download error:", error);
-    return NextResponse.json({ error: "Download failed" }, { status: 500 });
-  } finally {
-    if (client) await client.close();
-  }
-}
-
-// POST handler - Upload file
+// POST /api/upload - Upload file
 export async function POST(request: NextRequest) {
   let client: MongoClient | null = null;
 
