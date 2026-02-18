@@ -8,23 +8,22 @@ const MONGODB_URI = process.env.MONGODB_URI || "";
 // GET /api/upload/[id] - Download a file by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  console.log("[Upload API] GET request received, id:", params.id);
+  const { id } = await context.params;
+  console.log("[Upload API] GET request received, id:", id);
   
   let client: MongoClient | null = null;
 
   try {
-    const fileIdStr = params.id;
-    
-    if (!fileIdStr) {
+    if (!id) {
       return NextResponse.json({ error: "File ID required" }, { status: 400 });
     }
 
     // Validate ObjectId
     let fileId: ObjectId;
     try {
-      fileId = new ObjectId(fileIdStr);
+      fileId = new ObjectId(id);
     } catch {
       return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
     }
@@ -36,7 +35,7 @@ export async function GET(
     const bucket = new GridFSBucket(db, { bucketName: "uploads" });
 
     // Get file info
-    console.log("[Upload API] Looking for file:", fileIdStr);
+    console.log("[Upload API] Looking for file:", id);
     const files = await bucket.find({ _id: fileId }).toArray();
     console.log("[Upload API] Found:", files.length, "files");
     
