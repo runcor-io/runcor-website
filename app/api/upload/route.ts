@@ -9,16 +9,26 @@ const MONGODB_URI = process.env.MONGODB_URI || "";
 
 // GET handler - Download file
 export async function GET(request: NextRequest) {
+  // Log immediately to confirm route is hit
+  console.log("[Upload API] GET request received:", request.url);
+  
   let client: MongoClient | null = null;
 
   try {
     // Parse file ID from URL
     const url = new URL(request.url);
+    console.log("[Upload API] Pathname:", url.pathname);
+    console.log("[Upload API] Search params:", url.searchParams.toString());
+    
     let fileIdStr = url.searchParams.get("id");
+    console.log("[Upload API] Query param id:", fileIdStr);
 
     if (!fileIdStr) {
       const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
-      if (pathMatch) fileIdStr = pathMatch[1];
+      if (pathMatch) {
+        fileIdStr = pathMatch[1];
+        console.log("[Upload API] Extracted from path:", fileIdStr);
+      }
     }
 
     if (!fileIdStr) {
@@ -40,8 +50,12 @@ export async function GET(request: NextRequest) {
     const bucket = new GridFSBucket(db, { bucketName: "uploads" });
 
     // Get file info
+    console.log("[Upload API] Looking for file in GridFS:", fileId.toString());
     const files = await bucket.find({ _id: fileId }).toArray();
+    console.log("[Upload API] Found files:", files.length);
+    
     if (!files || files.length === 0) {
+      console.log("[Upload API] File NOT found in GridFS");
       await client.close();
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
