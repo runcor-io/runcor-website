@@ -214,8 +214,6 @@ export default function ActiveOperations() {
         >
           <Loader2 className={`w-5 h-5 text-zinc-400 ${loading ? 'animate-spin' : ''}`} />
         </button>
-          </p>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
