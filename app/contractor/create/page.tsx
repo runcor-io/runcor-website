@@ -386,20 +386,24 @@ print(f"Result: {result}")
                       Format: sha256: followed by 64 hex characters. Payment only released if output matches.
                     </p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      <FileInput className="w-4 h-4 inline mr-1" />
-                      Input File (Optional)
-                    </label>
-                    <FileUpload 
-                      onUploadComplete={(url) => setInputFileUrl(url)}
-                      uploadedUrl={inputFileUrl}
-                    />
-                  </div>
                 </div>
               )}
             </div>
+
+            {/* Input File Upload - Always visible */}
+            <div className="border border-zinc-800 rounded-lg p-4 bg-zinc-900/50">
+              <div className="flex items-center gap-3 mb-4">
+                <FileInput className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="text-sm font-medium text-white">Input Files</h3>
+                  <p className="text-xs text-zinc-500">Upload data for the job to process</p>
+                </div>
+              </div>
+              
+              <FileUpload 
+                onUploadComplete={(url) => setInputFileUrl(url)}
+                uploadedUrl={inputFileUrl}
+              />
           </div>
         </div>
 
