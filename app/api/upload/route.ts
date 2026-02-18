@@ -111,51 +111,50 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/upload/:id - Download a file
+// GET /api/upload/:id - Download a file using GridFSBucket
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    console.log("[Upload API] Request URL:", request.url);
-    console.log("[Upload API] Pathname:", url.pathname);
     
     const { searchParams } = url;
     
     // Support both /api/upload?id=xxx and /api/upload/xxx formats
-    let fileId = searchParams.get("id");
-    console.log("[Upload API] Query param id:", fileId);
+    let fileIdStr = searchParams.get("id");
     
     // If no query param, try to extract from path (e.g., /api/upload/xxx)
-    if (!fileId) {
+    if (!fileIdStr) {
       const pathMatch = url.pathname.match(/\/api\/upload\/([^\/]+)$/);
       if (pathMatch) {
-        fileId = pathMatch[1];
-        console.log("[Upload API] Extracted from path:", fileId);
+        fileIdStr = pathMatch[1];
       }
     }
 
-    if (!fileId) {
+    if (!fileIdStr) {
       return NextResponse.json({ error: "File ID required" }, { status: 400 });
+    }
+
+    // Validate ObjectId format
+    let fileId: ObjectId;
+    try {
+      fileId = new ObjectId(fileIdStr);
+    } catch (err) {
+      return NextResponse.json({ error: "Invalid file ID format" }, { status: 400 });
     }
 
     const db = await getDb();
     const bucket = new GridFSBucket(db, { bucketName: "uploads" });
 
-    // Find file
-    console.log("[Upload API] Looking for file:", fileId);
-    const files = await db.collection("uploads.files").findOne({
-      _id: new ObjectId(fileId)
-    });
-
+    // Get file info first using GridFSBucket's file collection
+    const files = await db.collection("uploads.files").findOne({ _id: fileId });
+    
     if (!files) {
-      console.log("[Upload API] File not found in DB:", fileId);
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
-    console.log("[Upload API] File found:", files.filename);
 
-    // Create download stream
-    const downloadStream = bucket.openDownloadStream(new ObjectId(fileId));
+    // Create download stream - GridFSBucket handles chunks automatically
+    const downloadStream = bucket.openDownloadStream(fileId);
 
-    // Convert stream to buffer
+    // Collect all chunks
     const chunks: Buffer[] = [];
     for await (const chunk of downloadStream) {
       chunks.push(chunk);
