@@ -78,14 +78,26 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      let resolvedId: ObjectId | null = null;
+
       uploadStream.on('error', (err) => {
         console.error('[Upload API] Stream error:', err);
         reject(err);
       });
 
       uploadStream.on('finish', () => {
-        console.log('[Upload API] Upload finished, fileId:', uploadStream.id);
-        resolve(uploadStream.id as ObjectId);
+        console.log('[Upload API] Stream finished, id:', uploadStream.id);
+        resolvedId = uploadStream.id as ObjectId;
+      });
+
+      // Use 'close' event which fires after MongoDB confirms write
+      uploadStream.on('close', () => {
+        console.log('[Upload API] Stream closed, file persisted');
+        if (resolvedId) {
+          resolve(resolvedId);
+        } else {
+          reject(new Error('Stream closed without fileId'));
+        }
       });
 
       // Write buffer to stream
