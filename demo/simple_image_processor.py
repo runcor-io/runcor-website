@@ -19,12 +19,13 @@ INPUT_DIR = Path("/workspace/input")
 OUTPUT_DIR = Path("/workspace/output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Find all images
+# Find all images recursively (including subdirectories)
 image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif'}
-image_files = [f for f in INPUT_DIR.iterdir() 
+image_files = [f for f in INPUT_DIR.rglob('*') 
                if f.is_file() and f.suffix.lower() in image_extensions]
 
-print(f"\nFound {len(image_files)} images in {INPUT_DIR}")
+print(f"\nFound {len(image_files)} images in {INPUT_DIR} (including subdirectories)")
+print(f"Input directory contents: {list(INPUT_DIR.iterdir())}")
 
 if not image_files:
     print("ERROR: No images found! Please provide input images.")
