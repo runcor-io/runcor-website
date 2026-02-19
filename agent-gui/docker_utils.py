@@ -201,6 +201,56 @@ class DockerManager:
             self._log(f"Error pulling image: {e}", "ERROR")
             return False
     
+    def _ensure_runcor_image(self) -> bool:
+        """Build custom runcor-python image with Pillow pre-installed"""
+        try:
+            # Check if image already exists
+            result = subprocess.run(
+                ["docker", "images", "-q", "runcor-python:latest"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.stdout.strip():
+                return True
+            
+            self._log("Building runcor-python image with Pillow...")
+            
+            # Create Dockerfile
+            dockerfile = '''FROM python:3.11-slim
+RUN pip install --no-cache-dir Pillow
+WORKDIR /app
+'''
+            # Create temp directory for build
+            import tempfile
+            build_dir = tempfile.mkdtemp(prefix="runcor_docker_build_")
+            dockerfile_path = os.path.join(build_dir, "Dockerfile")
+            
+            with open(dockerfile_path, 'w') as f:
+                f.write(dockerfile)
+            
+            # Build image
+            result = subprocess.run(
+                ["docker", "build", "-t", "runcor-python:latest", build_dir],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            # Cleanup
+            shutil.rmtree(build_dir, ignore_errors=True)
+            
+            if result.returncode == 0:
+                self._log("runcor-python image built successfully")
+                return True
+            else:
+                self._log(f"Failed to build image: {result.stderr}", "ERROR")
+                return False
+                
+        except Exception as e:
+            self._log(f"Error building runcor-python image: {e}", "ERROR")
+            return False
+    
     def run_container(
         self,
         job_id: str,
@@ -242,7 +292,10 @@ class DockerManager:
                 with open(script_file, 'w') as f:
                     f.write(script_content)
                 entry_cmd = ["python", "/app/job.py"]
-                image = "python:3.11-slim"
+                # Use custom image with Pillow pre-installed
+                image = "runcor-python:latest"
+                # Build custom image if not exists
+                self._ensure_runcor_image()
             elif job_type == "powershell":
                 script_file = os.path.join(temp_script_dir, "job.ps1")
                 with open(script_file, 'w') as f:
