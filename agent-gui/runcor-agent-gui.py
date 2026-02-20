@@ -1371,8 +1371,18 @@ RAM:          {info.get('ram', 'N/A')} GB
             return
         
         # Debug: List output_dir contents
+        self.log(f"DEBUG: output_dir={output_dir}")
+        self.log(f"DEBUG: output_dir exists={os.path.exists(output_dir)}")
+        if os.path.exists(output_dir):
+            try:
+                output_listing = os.listdir(output_dir)
+                self.log(f"DEBUG: output_dir listing: {output_listing}")
+            except Exception as e:
+                self.log(f"DEBUG: Error listing output_dir: {e}")
+        
         output_files = []
         for root, dirs, files in os.walk(output_dir):
+            self.log(f"DEBUG: Walking {root}, dirs={dirs}, files={files}")
             for filename in files:
                 filepath = os.path.join(root, filename)
                 output_files.append(filepath)
