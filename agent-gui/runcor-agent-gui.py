@@ -855,11 +855,25 @@ RAM:          {info.get('ram', 'N/A')} GB
             import random
             info['device_id'] = f"0x{random.randint(10000000, 99999999)}{random.randint(10000000, 99999999)}"
             
+        # GPU Details (CUDA, ROCm, Metal, Intel)
+        gpu_info = self.detect_gpu_details()
+        info['gpu'] = gpu_info.get('name', info.get('gpu'))
+        info['gpu_vram'] = gpu_info.get('vram_gb', 0)
+        info['gpu_type'] = gpu_info.get('type', 'unknown')
+        info['cuda_version'] = gpu_info.get('cuda_version')
+        info['rocm_version'] = gpu_info.get('rocm_version')
+        
         info['os'] = f"Windows {platform.release()}"
         info['architecture'] = 'amd64'
         info['capabilities'] = ['cpu_compute', 'windows']
         if info['gpu']:
-            info['capabilities'].extend(['gpu_compute', 'cuda', 'rendering'])
+            info['capabilities'].extend(['gpu_compute', 'rendering'])
+            if gpu_info.get('cuda_available'):
+                info['capabilities'].append('cuda')
+            if gpu_info.get('rocm_available'):
+                info['capabilities'].append('rocm')
+            if gpu_info.get('metal_available'):
+                info['capabilities'].append('metal')
         info['max_job_ram'] = f"{info['ram'] - 4}gb"
         
         global DEVICE_ID, CAPABILITIES
@@ -867,6 +881,137 @@ RAM:          {info.get('ram', 'N/A')} GB
         CAPABILITIES = info['capabilities']
         
         return info
+    
+    def detect_gpu_details(self):
+        """Detect GPU details including CUDA, ROCm, Metal support"""
+        gpu_info = {
+            'name': None,
+            'vram_gb': 0,
+            'type': 'unknown',
+            'cuda_available': False,
+            'cuda_version': None,
+            'rocm_available': False,
+            'rocm_version': None,
+            'metal_available': False,
+            'intel_available': False
+        }
+        
+        # Try NVIDIA CUDA first
+        try:
+            result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total,driver_version', 
+                                    '--format=csv,noheader'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                parts = result.stdout.strip().split(', ')
+                if len(parts) >= 2:
+                    gpu_info['name'] = parts[0]
+                    # Parse VRAM (e.g., "8192 MiB" or "8 GiB")
+                    vram_str = parts[1].replace('MiB', '').replace('GiB', '').replace('MB', '').replace('GB', '').strip()
+                    try:
+                        vram_mb = int(vram_str)
+                        gpu_info['vram_gb'] = round(vram_mb / 1024) if vram_mb > 1000 else vram_mb
+                    except:
+                        gpu_info['vram_gb'] = 8
+                    gpu_info['type'] = 'nvidia'
+                    gpu_info['cuda_available'] = True
+                    gpu_info['driver_version'] = parts[2] if len(parts) > 2 else None
+                    
+                    # Get CUDA version
+                    try:
+                        cuda_result = subprocess.run(['nvcc', '--version'], capture_output=True, text=True, timeout=3)
+                        if cuda_result.returncode == 0:
+                            for line in cuda_result.stdout.split('\n'):
+                                if 'release' in line:
+                                    gpu_info['cuda_version'] = line.split('release')[-1].split(',')[0].strip()
+                                    break
+                    except:
+                        pass
+                    
+                    self.log(f"NVIDIA GPU detected: {gpu_info['name']} ({gpu_info['vram_gb']}GB)")
+                    return gpu_info
+        except:
+            pass
+        
+        # Try AMD ROCm
+        try:
+            result = subprocess.run(['rocm-smi', '--showproductname'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and 'GPU' in result.stdout:
+                for line in result.stdout.split('\n'):
+                    if 'GPU' in line and ':' in line:
+                        gpu_info['name'] = line.split(':')[-1].strip()
+                        gpu_info['type'] = 'amd'
+                        gpu_info['rocm_available'] = True
+                        
+                        # Try to get VRAM
+                        try:
+                            vram_result = subprocess.run(['rocm-smi', '--showmeminfo', 'vram'], 
+                                                        capture_output=True, text=True, timeout=3)
+                            if vram_result.returncode == 0:
+                                for vram_line in vram_result.stdout.split('\n'):
+                                    if 'MB' in vram_line:
+                                        parts = vram_line.split()
+                                        for part in parts:
+                                            if part.isdigit():
+                                                gpu_info['vram_gb'] = round(int(part) / 1024)
+                                                break
+                        except:
+                            gpu_info['vram_gb'] = 8
+                        
+                        # Get ROCm version
+                        try:
+                            rocm_result = subprocess.run(['rocminfo'], capture_output=True, text=True, timeout=3)
+                            if rocm_result.returncode == 0:
+                                gpu_info['rocm_version'] = 'installed'
+                        except:
+                            pass
+                        
+                        self.log(f"AMD GPU detected: {gpu_info['name']} ({gpu_info['vram_gb']}GB)")
+                        return gpu_info
+        except:
+            pass
+        
+        # Try Intel Arc/GPU
+        try:
+            result = subprocess.run(['powershell', '-Command', 
+                                    'Get-WmiObject Win32_VideoController | Where-Object {$_.Name -like "*Intel*"} | Select-Object -ExpandProperty Name'],
+                                   capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and 'Intel' in result.stdout:
+                gpu_info['name'] = result.stdout.strip().split('\n')[0]
+                gpu_info['type'] = 'intel'
+                gpu_info['intel_available'] = True
+                gpu_info['vram_gb'] = 4  # Shared memory, estimate
+                self.log(f"Intel GPU detected: {gpu_info['name']}")
+                return gpu_info
+        except:
+            pass
+        
+        # Fallback to basic WMI detection
+        try:
+            result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'Name,AdapterRAM', '/format:csv'],
+                                  capture_output=True, text=True, timeout=5)
+            for line in result.stdout.split('\n'):
+                if 'NVIDIA' in line or 'AMD' in line or 'Intel' in line or 'Radeon' in line:
+                    parts = line.split(',')
+                    if len(parts) >= 3:
+                        name = parts[1].strip()
+                        ram_str = parts[2].strip()
+                        gpu_info['name'] = name
+                        try:
+                            if ram_str.isdigit():
+                                gpu_info['vram_gb'] = round(int(ram_str) / (1024**3))
+                        except:
+                            gpu_info['vram_gb'] = 4
+                        if 'NVIDIA' in name:
+                            gpu_info['type'] = 'nvidia'
+                        elif 'AMD' in name or 'Radeon' in name:
+                            gpu_info['type'] = 'amd'
+                        elif 'Intel' in name:
+                            gpu_info['type'] = 'intel'
+                        self.log(f"GPU detected: {gpu_info['name']} ({gpu_info['vram_gb']}GB)")
+                        break
+        except:
+            pass
+        
+        return gpu_info
         
     def api_request(self, method, endpoint, data=None):
         """Make API request with detailed logging"""
