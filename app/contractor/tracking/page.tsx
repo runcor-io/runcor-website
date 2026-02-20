@@ -34,7 +34,7 @@ interface Job {
   logs: string[];
   error?: string;
   result?: any;
-  resultFileId?: string;
+  resultFileIds?: string[];
 }
 
 interface Device {
@@ -503,7 +503,7 @@ export default function ActiveOperations() {
                   </div>
                   
                   {/* Download Results Button */}
-                  {selectedJob.status === "completed" && selectedJob.resultFileId && (
+                  {selectedJob.status === "completed" && selectedJob.resultFileIds && selectedJob.resultFileIds.length > 0 && (
                     <button
                       onClick={() => downloadResults(selectedJob)}
                       className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-colors"
