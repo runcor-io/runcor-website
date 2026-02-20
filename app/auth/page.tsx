@@ -118,13 +118,38 @@ function AuthContent() {
     }
   };
 
-  const selectEntity = (entity: "provider" | "contractor") => {
+  const selectEntity = async (entity: "provider" | "contractor") => {
     setSelectedEntity(entity);
-    // Submit the form after selection
-    setTimeout(() => {
-      const form = document.getElementById("auth-form") as HTMLFormElement;
-      if (form) form.requestSubmit();
-    }, 0);
+    setLoading(true);
+    
+    // Directly call signIn instead of form submission
+    try {
+      const result = await signIn("credentials", {
+        username: username.trim(),
+        password,
+        entityType: entity,
+        action: "register",
+        redirect: false,
+      });
+
+      if (result?.error) {
+        if (result.error === "ACCOUNT_PENDING_APPROVAL") {
+          setPendingUsername(username);
+          setStep("pending_approval");
+          setLoading(false);
+          return;
+        }
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
+      // Success - session update will trigger redirect for providers
+      setLoading(false);
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   const goBack = () => {
