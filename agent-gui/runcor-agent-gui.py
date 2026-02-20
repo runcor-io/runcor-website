@@ -1067,16 +1067,16 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.log(f"Starting job execution: {job.get('title', 'Job')}")
         
         # Execute the job
-        success = self.execute_job(job)
+        success, work_dir = self.execute_job(job)
         
         # Upload results if job succeeded
-        if success:
+        if success and work_dir:
             self.log("📤 Checking for output files to upload...")
             self._upload_job_results(job_id, work_dir)
         
         # Mark complete
         actual_hash = None
-        if success and job.get('deterministic'):
+        if success and work_dir and job.get('deterministic'):
             # Compute hash of output
             actual_hash = self.hash_directory(work_dir)
             
@@ -1111,6 +1111,7 @@ RAM:          {info.get('ram', 'N/A')} GB
         
     def execute_job(self, job):
         """Execute a job using Docker if available, otherwise native"""
+        work_dir = None
         try:
             job_id = job.get('_id') or job.get('id')
             job_type = job.get('type', 'python')
@@ -1181,14 +1182,16 @@ RAM:          {info.get('ram', 'N/A')} GB
             
             if use_container:
                 self.log(f"🐳 Executing in Docker container (isolated)")
-                return self._execute_in_docker(job, work_dir)
+                success = self._execute_in_docker(job, work_dir)
             else:
                 self.log(f"⚠️ Executing natively (no container isolation)")
-                return self._execute_native(job, work_dir)
+                success = self._execute_native(job, work_dir)
+            
+            return success, work_dir
                 
         except Exception as e:
             self.log(f"Job execution failed: {e}", "ERROR")
-            return False
+            return False, work_dir
     
     def _execute_in_docker(self, job, work_dir):
         """Execute job in Docker container"""
