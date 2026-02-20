@@ -13,6 +13,14 @@ export default withAuth(
     const entityType = token.entityType as string;
     const contractorStatus = token.contractorStatus as string;
 
+    // Admin users - allow access to everything, but redirect / to /admin
+    if (entityType === "admin") {
+      if (pathname === "/" || pathname === "/dashboard" || pathname === "/contractor") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+      return NextResponse.next();
+    }
+
     // Provider routes - only providers allowed
     if (pathname.startsWith("/dashboard")) {
       if (entityType !== "provider") {
@@ -44,6 +52,14 @@ export default withAuth(
         return NextResponse.redirect(new URL("/auth", req.url));
       }
 
+      return NextResponse.next();
+    }
+
+    // Admin routes - only admins allowed
+    if (pathname.startsWith("/admin")) {
+      if (entityType !== "admin") {
+        return NextResponse.redirect(new URL("/auth", req.url));
+      }
       return NextResponse.next();
     }
 

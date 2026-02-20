@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { 
   CheckCircle, 
   XCircle, 
@@ -23,7 +24,8 @@ interface Contractor {
 }
 
 export default function ContractorApprovals() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,6 +34,22 @@ export default function ContractorApprovals() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+
+  const isAdmin = (session?.user as any)?.entityType === "admin";
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth");
+      return;
+    }
+    if (status === "authenticated" && !isAdmin) {
+      router.push("/dashboard");
+      return;
+    }
+    if (status === "authenticated" && isAdmin) {
+      fetchContractors();
+    }
+  }, [status, isAdmin, activeTab]);
 
   const fetchContractors = async () => {
     setLoading(true);
@@ -49,10 +67,6 @@ export default function ContractorApprovals() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchContractors();
-  }, [activeTab]);
 
   const handleApprove = async (userId: string) => {
     setProcessing(userId);

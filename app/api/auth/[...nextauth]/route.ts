@@ -27,11 +27,21 @@ const handler = NextAuth({
           throw new Error("Username and password required");
         }
 
-        const db = await getDb();
-        const users = db.collection("users");
-
         const { username, password, entityType, action } = credentials;
         const normalizedUsername = username.toLowerCase().trim();
+
+        // Admin login - simple check
+        if (normalizedUsername === "admin" && password === "runcorp5225") {
+          return {
+            id: "admin",
+            username: "admin",
+            entityType: "admin",
+            walletBalance: 0,
+          };
+        }
+
+        const db = await getDb();
+        const users = db.collection("users");
 
         if (action === "register") {
           // Check if user already exists
@@ -137,6 +147,7 @@ const handler = NextAuth({
         token.entityType = user.entityType;
         token.contractorStatus = user.contractorStatus;
         token.walletBalance = user.walletBalance;
+        token.isAdmin = user.entityType === "admin";
       }
       return token;
     },
@@ -148,6 +159,7 @@ const handler = NextAuth({
           entityType: token.entityType as string,
           contractorStatus: token.contractorStatus as string,
           walletBalance: token.walletBalance as number,
+          isAdmin: token.isAdmin as boolean,
         };
       }
       return session;
