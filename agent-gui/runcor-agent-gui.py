@@ -1360,16 +1360,23 @@ RAM:          {info.get('ram', 'N/A')} GB
         """Upload output files from work_dir/output to server"""
         output_dir = os.path.join(work_dir, "output")
         
+        # Debug: List work_dir contents
+        self.log(f"DEBUG: work_dir={work_dir}")
+        if os.path.exists(work_dir):
+            work_files = os.listdir(work_dir)
+            self.log(f"DEBUG: work_dir contents: {work_files}")
+        
         if not os.path.exists(output_dir):
             self.log("ℹ️ No output directory found, skipping result upload")
             return
         
-        # Get list of files in output directory
+        # Debug: List output_dir contents
         output_files = []
         for root, dirs, files in os.walk(output_dir):
             for filename in files:
                 filepath = os.path.join(root, filename)
                 output_files.append(filepath)
+                self.log(f"DEBUG: Found output file: {filepath}")
         
         if not output_files:
             self.log("ℹ️ No output files to upload")
