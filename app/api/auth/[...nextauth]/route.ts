@@ -19,7 +19,7 @@ const handler = NextAuth({
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
-        role: { label: "Role", type: "text" },
+        entityType: { label: "Entity Type", type: "text" }, // "provider" or "contractor"
         action: { label: "Action", type: "text" }, // "login" or "register"
       },
       async authorize(credentials) {
@@ -30,7 +30,7 @@ const handler = NextAuth({
         const db = await getDb();
         const users = db.collection("users");
 
-        const { username, password, role, action } = credentials;
+        const { username, password, entityType, action } = credentials;
         const normalizedUsername = username.toLowerCase().trim();
 
         if (action === "register") {
@@ -40,25 +40,40 @@ const handler = NextAuth({
             throw new Error("Username already exists");
           }
 
+          // Validate entityType
+          if (!entityType || !["provider", "contractor"].includes(entityType)) {
+            throw new Error("Invalid entity type");
+          }
+
           // Hash password
           const hashedPassword = await bcrypt.hash(password, 10);
 
-          // Create user with 1000 free tokens
-          const newUser = {
+          // Create user
+          const newUser: any = {
             username: normalizedUsername,
             password: hashedPassword,
-            role: role || "owner", // "owner" (device owner) or "contractor"
+            entityType: entityType, // "provider" or "contractor"
             walletBalance: 1000, // Free tokens on signup
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
 
+          // Contractors need approval
+          if (entityType === "contractor") {
+            newUser.contractorStatus = "pending"; // pending | approved | rejected
+          }
+
           await users.insertOne(newUser);
+
+          // Don't auto-login contractors - they need approval
+          if (entityType === "contractor") {
+            throw new Error("ACCOUNT_PENDING_APPROVAL");
+          }
 
           return {
             id: normalizedUsername,
             username: normalizedUsername,
-            role: newUser.role,
+            entityType: newUser.entityType,
             walletBalance: newUser.walletBalance,
           };
         }
@@ -74,10 +89,21 @@ const handler = NextAuth({
           throw new Error("Invalid username or password");
         }
 
+        // Check if contractor is approved
+        if (user.entityType === "contractor" && user.contractorStatus !== "approved") {
+          if (user.contractorStatus === "pending") {
+            throw new Error("ACCOUNT_PENDING_APPROVAL");
+          }
+          if (user.contractorStatus === "rejected") {
+            throw new Error("ACCOUNT_REJECTED");
+          }
+        }
+
         return {
           id: normalizedUsername,
           username: normalizedUsername,
-          role: user.role,
+          entityType: user.entityType,
+          contractorStatus: user.contractorStatus,
           walletBalance: user.walletBalance || 0,
         };
       },
@@ -108,7 +134,8 @@ const handler = NextAuth({
     async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
         token.username = user.username;
-        token.role = user.role;
+        token.entityType = user.entityType;
+        token.contractorStatus = user.contractorStatus;
         token.walletBalance = user.walletBalance;
       }
       return token;
@@ -118,7 +145,8 @@ const handler = NextAuth({
         session.user = {
           ...session.user,
           username: token.username as string,
-          role: token.role as string,
+          entityType: token.entityType as string,
+          contractorStatus: token.contractorStatus as string,
           walletBalance: token.walletBalance as number,
         };
       }

@@ -11,7 +11,6 @@ import {
   Wallet,
   Package,
   BarChart3,
-  Terminal,
 } from "lucide-react";
 import RequireAuth from "../components/RequireAuth";
 import LogoutButton from "../components/LogoutButton";
@@ -81,14 +80,7 @@ export default function ContractorLayout({
           </nav>
 
           {/* Bottom Actions */}
-          <div className="p-4 border-t border-zinc-800 space-y-2">
-            <Link
-              href="/dashboard"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-900/50 transition-all"
-            >
-              <Terminal className="w-4 h-4" />
-              Switch to Device View
-            </Link>
+          <div className="p-4 border-t border-zinc-800">
             <LogoutButton variant="sidebar" />
           </div>
         </aside>

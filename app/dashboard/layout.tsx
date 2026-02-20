@@ -11,7 +11,6 @@ import {
   Wallet,
   BarChart3,
   Radio,
-  Building2,
 } from "lucide-react";
 import RequireAuth from "../components/RequireAuth";
 import LogoutButton from "../components/LogoutButton";
@@ -81,15 +80,7 @@ export default function DashboardLayout({
           </nav>
 
           {/* User Section */}
-          <div className="p-4 border-t border-zinc-800 space-y-2">
-            <Link
-              href="/contractor"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-900/50 transition-all"
-            >
-              <Building2 className="w-4 h-4" />
-              Switch to Contractor View
-            </Link>
-            
+          <div className="p-4 border-t border-zinc-800">
             <LogoutButton variant="sidebar" />
           </div>
         </aside>
