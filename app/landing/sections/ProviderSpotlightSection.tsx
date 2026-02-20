@@ -117,7 +117,7 @@ export default function ProviderSpotlightSection() {
 
             {/* CTA */}
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="lp-btn-primary"
             >
               Become a provider

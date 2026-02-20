@@ -93,7 +93,7 @@ export default function EnterpriseSpotlightSection() {
 
             {/* CTA */}
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="lp-btn-primary"
             >
               Post a job

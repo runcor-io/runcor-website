@@ -51,7 +51,7 @@ export default function HeroSection() {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link
-            href="/auth/signin"
+            href="/auth"
             className="lp-btn-primary text-base"
           >
             Start Computing

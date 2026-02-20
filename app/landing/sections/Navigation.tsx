@@ -69,7 +69,7 @@ export default function Navigation() {
         {/* CTA Button - Link to Sign In */}
         <div className="hidden md:block">
           <Link
-            href="/auth/signin"
+            href="/auth"
             className="lp-btn-primary text-sm"
           >
             Join Now
@@ -99,7 +99,7 @@ export default function Navigation() {
               </button>
             ))}
             <Link
-              href="/auth/signin"
+              href="/auth"
               className="lp-btn-primary w-full mt-2 text-center justify-center"
             >
               Join Now
