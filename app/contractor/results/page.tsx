@@ -28,6 +28,7 @@ interface JobResult {
   logs: string[];
   claimedBy: string;
   postedBy: string;
+  resultFileIds?: string[];
 }
 
 export default function Results() {
@@ -84,29 +85,44 @@ export default function Results() {
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
-  const downloadResults = (job: JobResult) => {
-    // Create a JSON file with the job results
-    const data = JSON.stringify(
-      {
-        jobId: job._id,
-        title: job.title,
-        type: job.type,
-        completedAt: job.completedAt,
-        result: job.result,
-        logs: job.logs,
-      },
-      null,
-      2
-    );
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `job-${job._id.slice(-8)}-results.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadResults = async (job: JobResult) => {
+    try {
+      const response = await fetch(`/api/jobs/${job._id}/results`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Failed to download results');
+      }
+      
+      // Check content type to ensure it's a file, not JSON
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'No results available');
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${job.title.replace(/\s+/g, '_')}_results.zip`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      alert(error.message || 'Failed to download results. Please try again.');
+    }
   };
 
   if (loading) {
