@@ -16,6 +16,8 @@ export async function GET(
   let client: MongoClient | null = null;
 
   try {
+    console.log(`[Results API] Download request for job ${jobId}`);
+    
     // Get query param for file index (if multiple results)
     const url = new URL(request.url);
     const fileIndex = parseInt(url.searchParams.get("index") || "0");
@@ -28,29 +30,48 @@ export async function GET(
     const job = await db.collection("jobs").findOne({ _id: new ObjectId(jobId) });
     
     if (!job) {
+      console.log(`[Results API] Job ${jobId} not found`);
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+
+    console.log(`[Results API] Job found: ${job.title}, hasResults: ${job.hasResults}, resultFileIds: ${JSON.stringify(job.resultFileIds)}`);
 
     // Check if job has result files
     const resultFileIds = job.resultFileIds || [];
     
     if (resultFileIds.length === 0) {
+      console.log(`[Results API] No result files for job ${jobId}`);
       return NextResponse.json({ error: "No results available for this job" }, { status: 404 });
     }
 
     if (fileIndex >= resultFileIds.length) {
+      console.log(`[Results API] File index ${fileIndex} out of range (total: ${resultFileIds.length})`);
       return NextResponse.json({ error: "Result file not found" }, { status: 404 });
     }
 
-    const fileId = new ObjectId(resultFileIds[fileIndex]);
+    const fileIdStr = resultFileIds[fileIndex];
+    console.log(`[Results API] Looking for file ID: ${fileIdStr}`);
+    
+    let fileId;
+    try {
+      fileId = new ObjectId(fileIdStr);
+    } catch (e) {
+      console.log(`[Results API] Invalid ObjectId: ${fileIdStr}`);
+      return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
+    }
+    
     const bucket = new GridFSBucket(db, { bucketName: "jobresults" });
 
     // Get file info
     const files = await bucket.find({ _id: fileId }).toArray();
+    console.log(`[Results API] GridFS query found ${files.length} files`);
+    
     if (!files || files.length === 0) {
+      console.log(`[Results API] File ${fileId} not found in GridFS`);
       return NextResponse.json({ error: "Result file not found in storage" }, { status: 404 });
     }
     const fileDoc = files[0];
+    console.log(`[Results API] File found: ${fileDoc.filename}, size: ${fileDoc.length}`);
 
     // Stream file
     const chunks: Buffer[] = [];
@@ -61,12 +82,14 @@ export async function GET(
     }
     
     const fileBuffer = Buffer.concat(chunks);
+    console.log(`[Results API] Downloaded ${fileBuffer.length} bytes`);
+    
     await client.close();
 
     return new NextResponse(fileBuffer, {
       headers: {
-        "Content-Type": fileDoc.metadata?.contentType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${fileDoc.filename}"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${fileDoc.filename || 'results.zip'}"`,
         "Content-Length": fileBuffer.length.toString(),
       },
     });

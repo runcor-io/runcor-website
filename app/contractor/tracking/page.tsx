@@ -159,12 +159,25 @@ export default function ActiveOperations() {
   const downloadResults = async (job: Job) => {
     try {
       const response = await fetch(`/api/jobs/${job._id}/results`);
+      
       if (!response.ok) {
-        throw new Error('Failed to download results');
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Failed to download results');
+      }
+      
+      // Check content type to ensure it's a file, not JSON
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'No results available');
       }
       
       // Get the blob from the response
       const blob = await response.blob();
+      
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
       
       // Create a download link
       const url = window.URL.createObjectURL(blob);
@@ -177,9 +190,9 @@ export default function ActiveOperations() {
       // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download error:', error);
-      alert('Failed to download results. Please try again.');
+      alert(error.message || 'Failed to download results. Please try again.');
     }
   };
 
