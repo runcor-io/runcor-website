@@ -42,7 +42,7 @@ next-env.d.ts
 /public/downloads/*.exe
 !/public/downloads/RunCor-Agent.exe
 /public/downloads/runcor-agent-*
-!/public/downloads/runcor-agent-v25.exe
 !/public/downloads/runcor-agent-v26.exe
 !/public/downloads/runcor-agent-v27.exe
+!/public/downloads/runcor-agent-v28.exe
 !/public/downloads/install.sh
