@@ -17,6 +17,7 @@ import {
   Loader2,
   Briefcase,
   XCircle,
+  Download,
 } from "lucide-react";
 
 interface Job {
@@ -33,6 +34,7 @@ interface Job {
   logs: string[];
   error?: string;
   result?: any;
+  resultFileId?: string;
 }
 
 interface Device {
@@ -152,6 +154,33 @@ export default function ActiveOperations() {
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return `${Math.floor(diff / 86400)}d ago`;
+  };
+
+  const downloadResults = async (job: Job) => {
+    try {
+      const response = await fetch(`/api/jobs/${job._id}/results`);
+      if (!response.ok) {
+        throw new Error('Failed to download results');
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${job.title.replace(/\s+/g, '_')}_results.zip`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download results. Please try again.');
+    }
   };
 
   if (loading) {
@@ -459,6 +488,17 @@ export default function ActiveOperations() {
                       <span className="font-mono text-emerald-400">{selectedJob.reward.toLocaleString()} tokens</span>
                     </div>
                   </div>
+                  
+                  {/* Download Results Button */}
+                  {selectedJob.status === "completed" && selectedJob.resultFileId && (
+                    <button
+                      onClick={() => downloadResults(selectedJob)}
+                      className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-500/30 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Results
+                    </button>
+                  )}
                 </div>
               </div>
             )}

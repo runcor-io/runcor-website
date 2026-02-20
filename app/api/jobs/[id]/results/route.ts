@@ -136,7 +136,7 @@ export async function POST(
     await db.collection("jobs").updateOne(
       { _id: new ObjectId(jobId) },
       { 
-        $push: { resultFileIds: fileId.toString() },
+        $push: { resultFileIds: fileId.toString() } as any,
         $set: { 
           resultUploadedAt: new Date().toISOString(),
           hasResults: true 

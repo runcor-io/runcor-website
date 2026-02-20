@@ -12,6 +12,7 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "gridfs-stream": "^1.1.1",
+    "gsap": "^3.14.2",
     "lucide-react": "^0.344.0",
     "mongodb": "^6.3.0",
     "multer": "^2.0.2",

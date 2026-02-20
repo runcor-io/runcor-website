@@ -1,7 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   DARK THEME (App/Dashboard)
+   ======================================== */
 :root {
   --bg-body: #000000;
   --bg-card: #0A0A0A;
@@ -9,6 +14,28 @@
   --text-primary: #FFFFFF;
   --text-secondary: #A1A1AA;
   --accent-glow: rgba(255, 255, 255, 0.08);
+}
+
+/* ========================================
+   LIGHT THEME (Landing Page)
+   ======================================== */
+:root {
+  --lp-background: 0 0% 100%;
+  --lp-foreground: 0 0% 10%;
+  --lp-card: 0 0% 100%;
+  --lp-card-foreground: 0 0% 10%;
+  --lp-primary: 17 90% 48%;
+  --lp-primary-foreground: 0 0% 100%;
+  --lp-secondary: 0 0% 96%;
+  --lp-secondary-foreground: 0 0% 10%;
+  --lp-muted: 0 0% 96%;
+  --lp-muted-foreground: 0 0% 45%;
+  --lp-accent: 17 90% 48%;
+  --lp-accent-foreground: 0 0% 100%;
+  --lp-border: 0 0% 90%;
+  --lp-input: 0 0% 90%;
+  --lp-ring: 17 90% 48%;
+  --lp-radius: 0.5rem;
 }
 
 body {
@@ -150,5 +177,150 @@ body {
   background: linear-gradient(180deg, #FFFFFF 0%, #A1A1AA 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* ========================================
+   LANDING PAGE STYLES (Light Theme)
+   ======================================== */
+
+@layer components {
+  /* Orange gradient from logo */
+  .lp-bg-gradient-orange {
+    background: linear-gradient(135deg, #EA580C 0%, #DC2626 100%);
+  }
+  
+  .lp-text-gradient-orange {
+    background-image: linear-gradient(135deg, #EA580C 0%, #DC2626 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Subtle shadow for cards */
+  .lp-shadow-subtle {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Light gray background for alternating sections */
+  .lp-bg-section-alt {
+    background-color: #F5F5F5;
+  }
+  
+  /* Clean border style */
+  .lp-border-clean {
+    border-color: #E5E5E5;
+  }
+  
+  /* Section spacing - IKEA style generous whitespace */
+  .lp-section-spacing {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+  
+  @media (min-width: 768px) {
+    .lp-section-spacing {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .lp-section-spacing {
+      padding-top: 7rem;
+      padding-bottom: 7rem;
+    }
+  }
+  
+  /* Container max width */
+  .lp-container {
+    max-width: 64rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  
+  @media (min-width: 1024px) {
+    .lp-container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  
+  /* Button primary - orange gradient */
+  .lp-btn-primary {
+    background: linear-gradient(135deg, #EA580C 0%, #DC2626 100%);
+    color: white;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .lp-btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  /* Button secondary - outlined */
+  .lp-btn-secondary {
+    border: 1px solid #D1D5DB;
+    color: #374151;
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    background-color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .lp-btn-secondary:hover {
+    border-color: #9CA3AF;
+    background-color: #F9FAFB;
+  }
+  
+  /* Card style */
+  .lp-card {
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+  
+  /* Stat number style */
+  .lp-stat-number {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Label/mono style */
+  .lp-label-mono {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6B7280;
+  }
+}
+
+/* Landing page body styles */
+.lp-body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: white;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lp-body h1, .lp-body h2, .lp-body h3, .lp-body h4, .lp-body h5, .lp-body h6 {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
