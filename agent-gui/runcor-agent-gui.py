@@ -18,6 +18,8 @@ import threading
 import tempfile
 import shutil
 import hashlib
+import random
+import string
 from pathlib import Path
 from datetime import datetime
 
@@ -1067,11 +1069,15 @@ RAM:          {info.get('ram', 'N/A')} GB
         # Execute the job
         success = self.execute_job(job)
         
+        # Upload results if job succeeded
+        if success:
+            self.log("📤 Checking for output files to upload...")
+            self._upload_job_results(job_id, work_dir)
+        
         # Mark complete
         actual_hash = None
         if success and job.get('deterministic'):
             # Compute hash of output
-            work_dir = os.path.join(tempfile.gettempdir(), f"runcor_{job_id}")
             actual_hash = self.hash_directory(work_dir)
             
         completion_data = {
@@ -1346,6 +1352,88 @@ RAM:          {info.get('ram', 'N/A')} GB
             return f"sha256:{combined.hexdigest()}"
         except:
             return None
+    
+    def _upload_job_results(self, job_id, work_dir):
+        """Upload output files from work_dir/output to server"""
+        output_dir = os.path.join(work_dir, "output")
+        
+        if not os.path.exists(output_dir):
+            self.log("ℹ️ No output directory found, skipping result upload")
+            return
+        
+        # Get list of files in output directory
+        output_files = []
+        for root, dirs, files in os.walk(output_dir):
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                output_files.append(filepath)
+        
+        if not output_files:
+            self.log("ℹ️ No output files to upload")
+            return
+        
+        self.log(f"📤 Found {len(output_files)} output file(s) to upload")
+        
+        # Create ZIP of all output files
+        try:
+            import zipfile
+            results_zip = os.path.join(work_dir, "results.zip")
+            
+            with zipfile.ZipFile(results_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for filepath in output_files:
+                    # Store with relative path from output_dir
+                    arcname = os.path.relpath(filepath, output_dir)
+                    zf.write(filepath, arcname)
+            
+            self.log(f"📦 Created results.zip ({os.path.getsize(results_zip)} bytes)")
+            
+            # Upload to server
+            self.log("📤 Uploading results to server...")
+            
+            with open(results_zip, 'rb') as f:
+                import urllib.request
+                
+                boundary = '----WebKitFormBoundary' + ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+                
+                # Build multipart form data
+                data = []
+                data.append(f'--{boundary}'.encode())
+                data.append(b'Content-Disposition: form-data; name="file"; filename="results.zip"')
+                data.append(b'Content-Type: application/zip')
+                data.append(b'')
+                data.append(f.read())
+                data.append(f'--{boundary}--'.encode())
+                
+                body = b'\r\n'.join(data)
+                
+                url = f"{API_URL}/api/jobs/{job_id}/results"
+                headers = {
+                    'Content-Type': f'multipart/form-data; boundary={boundary}',
+                    'Content-Length': str(len(body))
+                }
+                
+                req = urllib.request.Request(url, data=body, headers=headers, method='POST')
+                
+                try:
+                    with urllib.request.urlopen(req, timeout=60) as response:
+                        response_data = response.read().decode('utf-8')
+                        result = json.loads(response_data)
+                        
+                        if result.get('success'):
+                            self.log(f"✅ Results uploaded successfully!")
+                        else:
+                            self.log(f"⚠️ Upload failed: {result.get('error')}", "WARN")
+                            
+                except urllib.error.HTTPError as e:
+                    self.log(f"⚠️ Upload HTTP error: {e.code}", "WARN")
+                except Exception as e:
+                    self.log(f"⚠️ Upload error: {e}", "WARN")
+            
+            # Clean up zip file
+            os.remove(results_zip)
+            
+        except Exception as e:
+            self.log(f"⚠️ Failed to package/upload results: {e}", "WARN")
     
     def install_docker(self):
         """Install Docker Desktop (Windows only)"""
