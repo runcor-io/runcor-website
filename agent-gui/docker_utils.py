@@ -259,7 +259,8 @@ WORKDIR /app
         work_dir: str = None,
         cpu_limit: str = "1.0",
         memory_limit: str = "4g",
-        timeout: int = 300
+        timeout: int = 300,
+        image: str = None
     ) -> Tuple[bool, str, str]:
         """
         Run a job inside a Docker container
@@ -272,6 +273,7 @@ WORKDIR /app
             cpu_limit: CPU cores limit (e.g., "1.0", "0.5")
             memory_limit: Memory limit (e.g., "4g", "2g")
             timeout: Maximum execution time in seconds
+            image: Custom Docker image (optional)
             
         Returns:
             (success: bool, stdout: str, stderr: str)
@@ -292,16 +294,18 @@ WORKDIR /app
                 with open(script_file, 'w') as f:
                     f.write(script_content)
                 entry_cmd = ["python", "/app/job.py"]
-                # Use custom image with Pillow pre-installed
-                image = "runcor-python:latest"
-                # Build custom image if not exists
-                self._ensure_runcor_image()
+                # Use custom image or default
+                if not image:
+                    image = "runcor-python:latest"
+                    # Build custom image if not exists
+                    self._ensure_runcor_image()
             elif job_type == "powershell":
                 script_file = os.path.join(temp_script_dir, "job.ps1")
                 with open(script_file, 'w') as f:
                     f.write(script_content)
                 entry_cmd = ["pwsh", "-File", "/app/job.ps1"]
-                image = "mcr.microsoft.com/powershell:latest"
+                if not image:
+                    image = "mcr.microsoft.com/powershell:latest"
             else:
                 return False, "", f"Unsupported job type: {job_type}"
             

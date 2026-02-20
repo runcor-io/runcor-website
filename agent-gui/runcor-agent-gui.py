@@ -1493,6 +1493,42 @@ RAM:          {info.get('ram', 'N/A')} GB
             except Exception as e:
                 self.log(f"⚠️ Cleanup warning: {e}", "WARN")
     
+    def _ensure_docker_image(self, image_name: str) -> bool:
+        """Check if Docker image exists locally, pull if not"""
+        try:
+            # Check if image exists locally
+            result = subprocess.run(
+                ['docker', 'images', '--format', '{{.Repository}}:{{.Tag}}', image_name],
+                capture_output=True, text=True, timeout=30
+            )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                self.log(f"   Docker image {image_name} already cached")
+                return True
+            
+            # Image not found, need to pull
+            self.log(f"📦 PULLING Docker image: {image_name}...")
+            self.log(f"   This may take a few minutes on first run")
+            
+            pull_result = subprocess.run(
+                ['docker', 'pull', image_name],
+                capture_output=True, text=True, timeout=600  # 10 min timeout for large images
+            )
+            
+            if pull_result.returncode == 0:
+                self.log(f"   ✅ Successfully pulled {image_name}")
+                return True
+            else:
+                self.log(f"   ❌ Failed to pull image: {pull_result.stderr}", "ERROR")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            self.log(f"   ⚠️ Docker pull timed out (image too large or network slow)", "WARN")
+            return False
+        except Exception as e:
+            self.log(f"   ❌ Docker pull error: {e}", "ERROR")
+            return False
+    
     def _execute_in_docker(self, job, work_dir):
         """Execute job in Docker container"""
         job_id = job.get('_id') or job.get('id')
@@ -1503,6 +1539,20 @@ RAM:          {info.get('ram', 'N/A')} GB
         cpu_limit = job.get('cpuLimit', '1.0')
         memory_limit = job.get('memoryLimit', '4g')
         timeout = job.get('timeout', 300)
+        
+        # Phase 2: Auto-pull required Docker images
+        required_images = job.get('requiredImages', [])
+        if not required_images:
+            # Default image based on job type
+            if job_type == 'python':
+                required_images = ['python:3.11-slim']
+            elif job_type == 'powershell':
+                required_images = ['mcr.microsoft.com/powershell:latest']
+        
+        for image in required_images:
+            if not self._ensure_docker_image(image):
+                self.log(f"❌ Cannot run job - missing required image: {image}", "ERROR")
+                return False
         
         self.log(f"Resource limits: CPU={cpu_limit}, RAM={memory_limit}")
         self.log(f"Network: DISABLED (isolated)")
@@ -1542,7 +1592,8 @@ RAM:          {info.get('ram', 'N/A')} GB
         )
         progress_thread.start()
         
-        # Run in Docker
+        # Run in Docker with required image
+        docker_image = required_images[0] if required_images else None
         success, stdout, stderr = self.docker.run_container(
             job_id=job_id,
             script_content=script,
@@ -1550,7 +1601,8 @@ RAM:          {info.get('ram', 'N/A')} GB
             work_dir=work_dir,
             cpu_limit=str(cpu_limit),
             memory_limit=memory_limit,
-            timeout=timeout
+            timeout=timeout,
+            image=docker_image
         )
         
         # Stop progress monitoring
