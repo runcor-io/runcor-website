@@ -1173,8 +1173,20 @@ RAM:          {info.get('ram', 'N/A')} GB
                     if info.is_dir():
                         continue
                     
-                    # Security: Check for symlinks
-                    if os.path.islink(filename):
+                    # Security: Check for symlinks (in external_attr) and absolute paths
+                    # ZIP files can contain symlink info in external_attr (Unix: 0o120000)
+                    is_symlink = False
+                    if hasattr(info, 'external_attr'):
+                        # Unix symlink: file type 0o12 (symlink) in upper 16 bits
+                        mode = (info.external_attr >> 16) & 0o7777
+                        file_type = (info.external_attr >> 28) & 0o17
+                        if file_type == 0o10:  # Symbolic link (0o12 >> 2 = 0o10 in some formats)
+                            is_symlink = True
+                    # Also check for absolute path indicators in filename
+                    if filename.startswith('/') or '..' in filename:
+                        is_symlink = True
+                    
+                    if is_symlink:
                         blocked_files.append(f"{filename} (symlink)")
                         continue
                     
