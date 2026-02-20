@@ -1109,6 +1109,136 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.root.after(0, lambda: self.job_status_card.config(text="Idle", fg=COLORS['text_secondary']))
         self.root.after(0, lambda: self.set_progress(0))
         
+        # Cleanup work directory after everything is done
+        if work_dir:
+            self.cleanup_work_dir(work_dir)
+        
+    def validate_input_zip(self, zip_path: str, input_dir: str, job_spec: dict = None) -> tuple[bool, str]:
+        """
+        Validate and extract input ZIP file with security checks.
+        Returns: (is_valid, error_message)
+        """
+        import zipfile
+        from pathlib import Path
+        
+        job_spec = job_spec or {}
+        max_zip_size = job_spec.get('maxInputSize', 50 * 1024 * 1024)  # 50MB
+        max_files = job_spec.get('maxFiles', 1000)
+        max_extracted = job_spec.get('maxExtractedSize', 200 * 1024 * 1024)  # 200MB
+        max_nesting = job_spec.get('maxNesting', 5)
+        required_extensions = job_spec.get('requiredExtensions', [])
+        
+        zip_file = Path(zip_path)
+        extract_dir = Path(input_dir)
+        
+        # 1. Check ZIP file size
+        zip_size = zip_file.stat().st_size
+        if zip_size > max_zip_size:
+            return False, f"ZIP too large: {zip_size / 1024 / 1024:.1f}MB (max {max_zip_size / 1024 / 1024:.1f}MB)"
+        
+        self.log(f"   📏 ZIP size: {zip_size / 1024:.1f} KB")
+        
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                # 2. Check ZIP integrity and basic info
+                infolist = zf.infolist()
+                total_files = len([i for i in infolist if not i.is_dir()])
+                
+                self.log(f"   📁 Files in ZIP: {total_files}")
+                
+                # 3. Check for ZIP bomb (compression ratio)
+                compressed_size = sum(info.compress_size for info in infolist)
+                uncompressed_size = sum(info.file_size for info in infolist)
+                
+                self.log(f"   📦 Compressed: {compressed_size / 1024:.1f} KB, Uncompressed: {uncompressed_size / 1024:.1f} KB")
+                
+                if uncompressed_size > max_extracted:
+                    return False, f"Extracted size too large: {uncompressed_size / 1024 / 1024:.1f}MB (max {max_extracted / 1024 / 1024:.1f}MB)"
+                
+                if compressed_size > 0 and uncompressed_size / compressed_size > 100:
+                    return False, f"Suspicious compression ratio {uncompressed_size / compressed_size:.0f}:1 (possible ZIP bomb)"
+                
+                # 4. Check file count
+                if total_files > max_files:
+                    return False, f"Too many files: {total_files} (max {max_files})"
+                
+                # 5. Extract with security filtering
+                valid_files = []
+                blocked_files = []
+                
+                for info in infolist:
+                    filename = info.filename
+                    
+                    # Skip directories
+                    if info.is_dir():
+                        continue
+                    
+                    # Security: Check for symlinks
+                    if os.path.islink(filename):
+                        blocked_files.append(f"{filename} (symlink)")
+                        continue
+                    
+                    # Security: No executable files
+                    lower_name = filename.lower()
+                    if lower_name.endswith(('.exe', '.bat', '.sh', '.cmd', '.msi', '.dll', '.so', '.dylib')):
+                        blocked_files.append(f"{filename} (executable)")
+                        continue
+                    
+                    # Security: Skip hidden files (starting with .)
+                    if any(part.startswith('.') for part in Path(filename).parts):
+                        blocked_files.append(f"{filename} (hidden)")
+                        continue
+                    
+                    # Check nesting depth and flatten if needed
+                    path_parts = Path(filename).parts
+                    if len(path_parts) > max_nesting:
+                        # Flatten: use just the filename with parent prefix
+                        flat_name = "_".join(path_parts[-2:])  # parent_filename
+                        target_path = extract_dir / flat_name
+                        self.log(f"   📂 Flattened: {filename} -> {flat_name}")
+                    else:
+                        target_path = extract_dir / filename
+                    
+                    # Path traversal protection: ensure target is within extract_dir
+                    try:
+                        target_path.relative_to(extract_dir.resolve())
+                    except ValueError:
+                        blocked_files.append(f"{filename} (path traversal)")
+                        continue
+                    
+                    # Extract the file
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    with zf.open(info) as src, open(target_path, 'wb') as dst:
+                        shutil.copyfileobj(src, dst)
+                    
+                    valid_files.append(target_path)
+                
+                if blocked_files:
+                    self.log(f"   🚫 Blocked {len(blocked_files)} files for security:", "WARN")
+                    for f in blocked_files[:5]:
+                        self.log(f"      - {f}", "WARN")
+                    if len(blocked_files) > 5:
+                        self.log(f"      ... and {len(blocked_files) - 5} more", "WARN")
+        
+        except zipfile.BadZipFile:
+            return False, "Invalid or corrupted ZIP file"
+        except Exception as e:
+            return False, f"ZIP extraction error: {e}"
+        
+        # 6. Validate required file types
+        if required_extensions:
+            found_extensions = set(f.suffix.lower() for f in valid_files)
+            required_set = set(ext.lower() for ext in required_extensions)
+            if not required_set & found_extensions:
+                return False, f"No required file types found. Have: {found_extensions}, need: {required_set}"
+        
+        # 7. Check not empty
+        if len(valid_files) == 0:
+            return False, "No valid files in ZIP after security filtering"
+        
+        self.log(f"   ✅ Validated: {len(valid_files)} files extracted")
+        return True, f"OK: {len(valid_files)} files"
+
     def execute_job(self, job):
         """Execute a job using Docker if available, otherwise native"""
         work_dir = None
@@ -1132,12 +1262,11 @@ RAM:          {info.get('ram', 'N/A')} GB
             os.makedirs(input_dir, exist_ok=True)
             os.makedirs(output_dir, exist_ok=True)
             
-            # Download input file if provided
+            # Download and validate input file if provided
             if input_file_url:
                 self.log(f"📥 DOWNLOADING input from: {input_file_url[:60]}...")
                 try:
                     import urllib.request
-                    import zipfile
                     
                     # Download to temp location
                     download_path = os.path.join(work_dir, "input.zip")
@@ -1149,17 +1278,32 @@ RAM:          {info.get('ram', 'N/A')} GB
                         file_size = os.path.getsize(download_path)
                         self.log(f"   Downloaded: {file_size} bytes")
                         
-                        # Extract if it's a zip
+                        # Extract and validate ZIP
                         if download_path.endswith('.zip'):
-                            self.log(f"   Extracting ZIP...")
-                            with zipfile.ZipFile(download_path, 'r') as zip_ref:
-                                zip_ref.extractall(input_dir)
-                            os.remove(download_path)  # Clean up zip
-                            # List extracted files for debugging
-                            extracted_files = os.listdir(input_dir)
-                            self.log(f"✅ EXTRACTED {len(extracted_files)} files: {extracted_files[:10]}")
+                            self.log(f"🔒 VALIDATING input ZIP...")
+                            
+                            # Build job spec for validation
+                            job_spec = {
+                                'maxInputSize': job.get('maxInputSize', 50 * 1024 * 1024),
+                                'maxFiles': job.get('maxFiles', 1000),
+                                'maxExtractedSize': job.get('maxExtractedSize', 200 * 1024 * 1024),
+                                'maxNesting': job.get('maxNesting', 5),
+                                'requiredExtensions': job.get('requiredExtensions', [])
+                            }
+                            
+                            is_valid, message = self.validate_input_zip(download_path, input_dir, job_spec)
+                            
+                            # Clean up ZIP file
+                            os.remove(download_path)
+                            
+                            if not is_valid:
+                                self.log(f"❌ INPUT VALIDATION FAILED: {message}", "ERROR")
+                                return False, work_dir
+                            
+                            self.log(f"✅ {message}")
+                            
                         else:
-                            # Move single file to input dir
+                            # Single file - move to input dir
                             shutil.move(download_path, os.path.join(input_dir, os.path.basename(input_file_url)))
                             self.log(f"✅ SAVED single file: {os.path.basename(input_file_url)}")
                     else:
@@ -1192,6 +1336,15 @@ RAM:          {info.get('ram', 'N/A')} GB
         except Exception as e:
             self.log(f"Job execution failed: {e}", "ERROR")
             return False, work_dir
+    
+    def cleanup_work_dir(self, work_dir: str):
+        """Clean up temporary work directory after job completes"""
+        if work_dir and os.path.exists(work_dir):
+            try:
+                shutil.rmtree(work_dir, ignore_errors=True)
+                self.log(f"🧹 Cleaned up work directory")
+            except Exception as e:
+                self.log(f"⚠️ Cleanup warning: {e}", "WARN")
     
     def _execute_in_docker(self, job, work_dir):
         """Execute job in Docker container"""
