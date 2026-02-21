@@ -1,0 +1,28 @@
+# RunCor Medical Image
+# For HealthTech medical imaging
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgdcm-dev \
+    libpng-dev \
+    libjpeg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    pydicom \
+    SimpleITK \
+    pillow \
+    numpy \
+    pandas \
+    matplotlib \
+    nibabel \
+    scipy
+
+# Create app directory
+WORKDIR /app
+
+# Default command
+CMD ["python", "job.py"]

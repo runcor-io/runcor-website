@@ -1386,6 +1386,22 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.log(f"   ✅ Validated: {len(valid_files)} files extracted")
         return True, f"OK: {len(valid_files)} files"
 
+    def get_job_handler(self, job_type: str) -> tuple:
+        """Get Docker image and handler for job type
+        Returns: (image_name, handler_func)
+        """
+        handlers = {
+            'python': ('python:3.11-slim', None),
+            'ocr': ('runcor/ocr:latest', None),
+            'blender': ('runcor/blender:latest', None),
+            'medical': ('runcor/medical:latest', None),
+            'satellite': ('runcor/satellite:latest', None),
+            'ai': ('runcor/ai:latest', None),
+            'rendering': ('runcor/blender:latest', None),
+            'data_labeling': ('runcor/ai:latest', None),
+        }
+        return handlers.get(job_type, ('python:3.11-slim', None))
+    
     def execute_job(self, job):
         """Execute a job using Docker if available, otherwise native"""
         work_dir = None
@@ -1394,6 +1410,10 @@ RAM:          {info.get('ram', 'N/A')} GB
             job_type = job.get('type', 'python')
             script = job.get('script', '')
             input_file_url = job.get('inputFileUrl', '')
+            
+            # Phase 3: Get appropriate handler for job type
+            handler_image, _ = self.get_job_handler(job_type)
+            self.log(f"🔧 Job type: {job_type}, Handler: {handler_image}")
             
             # Debug: Log job data
             self.log(f"DEBUG Job fields: {list(job.keys())}")
@@ -1540,14 +1560,12 @@ RAM:          {info.get('ram', 'N/A')} GB
         memory_limit = job.get('memoryLimit', '4g')
         timeout = job.get('timeout', 300)
         
-        # Phase 2: Auto-pull required Docker images
+        # Phase 2/3: Auto-pull required Docker images
         required_images = job.get('requiredImages', [])
         if not required_images:
-            # Default image based on job type
-            if job_type == 'python':
-                required_images = ['python:3.11-slim']
-            elif job_type == 'powershell':
-                required_images = ['mcr.microsoft.com/powershell:latest']
+            # Phase 3: Use job type handler
+            handler_image, _ = self.get_job_handler(job_type)
+            required_images = [handler_image]
         
         for image in required_images:
             if not self._ensure_docker_image(image):

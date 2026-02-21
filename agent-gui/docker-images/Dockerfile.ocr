@@ -1,0 +1,28 @@
+# RunCor OCR Image
+# For Fintech KYC/OCR jobs
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    pytesseract \
+    pillow \
+    opencv-python-headless \
+    pdf2image \
+    numpy \
+    pandas
+
+# Create app directory
+WORKDIR /app
+
+# Default command
+CMD ["python", "job.py"]

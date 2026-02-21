@@ -1,0 +1,28 @@
+# RunCor Blender Image
+# For Animation distributed rendering
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Install Blender and dependencies
+RUN apt-get update && apt-get install -y \
+    blender \
+    python3 \
+    python3-pip \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for Blender scripting
+RUN pip3 install --no-cache-dir \
+    numpy \
+    bpy \
+    pillow
+
+# Set up Blender environment
+ENV BLENDER_USER_SCRIPTS=/root/.config/blender/scripts
+
+# Create app directory
+WORKDIR /app
+
+# Default command
+CMD ["blender", "--background", "--python", "job.py"]

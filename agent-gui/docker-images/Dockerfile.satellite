@@ -1,0 +1,30 @@
+# RunCor Satellite Image
+# For AgTech satellite/drone analysis
+
+FROM python:3.11-slim
+
+# Install GDAL and system dependencies
+RUN apt-get update && apt-get install -y \
+    gdal-bin \
+    libgdal-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    rasterio \
+    gdal \
+    numpy \
+    pandas \
+    pillow \
+    opencv-python-headless \
+    scikit-image \
+    matplotlib \
+    seaborn
+
+# Create app directory
+WORKDIR /app
+
+# Default command
+CMD ["python", "job.py"]

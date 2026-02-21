@@ -1,0 +1,31 @@
+# RunCor AI/Data Image
+# For AI training prep and data labeling
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip install --no-cache-dir \
+    torch \
+    torchvision \
+    pillow \
+    opencv-python-headless \
+    numpy \
+    pandas \
+    albumentations \
+    imgaug \
+    scikit-learn \
+    matplotlib \
+    seaborn \
+    pycocotools
+
+# Create app directory
+WORKDIR /app
+
+# Default command
+CMD ["python", "job.py"]
