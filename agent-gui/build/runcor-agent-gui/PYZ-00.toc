@@ -19,6 +19,7 @@
   ('csv', 'C:\\Users\\OMEN\\Lib\\csv.py', 'PYMODULE'),
   ('ctypes', 'C:\\Users\\OMEN\\Lib\\ctypes\\__init__.py', 'PYMODULE'),
   ('ctypes._endian', 'C:\\Users\\OMEN\\Lib\\ctypes\\_endian.py', 'PYMODULE'),
+  ('ctypes.wintypes', 'C:\\Users\\OMEN\\Lib\\ctypes\\wintypes.py', 'PYMODULE'),
   ('dataclasses', 'C:\\Users\\OMEN\\Lib\\dataclasses.py', 'PYMODULE'),
   ('datetime', 'C:\\Users\\OMEN\\Lib\\datetime.py', 'PYMODULE'),
   ('decimal', 'C:\\Users\\OMEN\\Lib\\decimal.py', 'PYMODULE'),

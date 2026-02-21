@@ -2244,7 +2244,38 @@ RAM:          {info.get('ram', 'N/A')} GB
                 
         self.root.destroy()
         
+def is_already_running():
+    """Check if another instance is already running using a mutex"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        
+        # Create a named mutex
+        mutex_name = "Global\\RunCorAgent_SingleInstance"
+        kernel32 = ctypes.windll.kernel32
+        
+        # Try to create mutex
+        mutex = kernel32.CreateMutexW(None, False, mutex_name)
+        last_error = kernel32.GetLastError()
+        
+        if last_error == 183:  # ERROR_ALREADY_EXISTS
+            # Another instance is running
+            return True
+        return False
+    except:
+        # If we can't check, assume not running
+        return False
+
 def main():
+    # Check for existing instance
+    if is_already_running():
+        messagebox.showerror(
+            "RunCor Agent Already Running",
+            "Another instance of RunCor Agent is already running.\n\n"
+            "Please check your system tray or taskbar for the existing window."
+        )
+        return
+    
     root = tk.Tk()
     
     # Set DPI awareness for crisp rendering on Windows
