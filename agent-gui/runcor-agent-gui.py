@@ -23,6 +23,13 @@ import string
 from pathlib import Path
 from datetime import datetime
 
+# Import psutil for resource monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
 # Import Docker utilities
 try:
     from docker_utils import DockerManager
@@ -1113,11 +1120,12 @@ RAM:          {info.get('ram', 'N/A')} GB
         self.heartbeat_thread.start()
         
     def job_worker(self):
-        """Background thread to poll for jobs"""
+        """Background thread to execute tasks from scheduler"""
         while not STOP_EVENT.is_set():
             try:
-                if not self.paused and not self.estopped:
-                    self.poll_and_execute_jobs()
+                if not self.paused and not self.estopped and not CURRENT_JOB:
+                    # Tasks are received via heartbeat, just check if we should start
+                    pass
                 time.sleep(POLL_INTERVAL)
             except Exception as e:
                 self.log(f"Worker error: {e}", "ERROR")
@@ -1163,6 +1171,9 @@ RAM:          {info.get('ram', 'N/A')} GB
         }
         
         # Use node token for authentication
+        if not PSUTIL_AVAILABLE:
+            return
+            
         try:
             url = f"{API_URL}/api/nodes/heartbeat"
             headers = {
@@ -1181,14 +1192,188 @@ RAM:          {info.get('ram', 'N/A')} GB
                 
                 # Check for assigned tasks from scheduler
                 if result.get('tasks') and len(result['tasks']) > 0:
-                    self.log(f"Received {len(result['tasks'])} task(s) from scheduler")
+                    self.log(f"📋 Received {len(result['tasks'])} task(s) from scheduler")
+                    # Execute first available task
                     for task in result['tasks']:
-                        # Would execute task here
-                        pass
+                        if task.get('status') in ['assigned', 'pulling_image']:
+                            self._execute_task(task)
+                            break
                         
         except Exception as e:
             # Silent fail for heartbeat
             pass
+    
+    def _execute_task(self, task):
+        """Execute a task assigned by the scheduler"""
+        global CURRENT_JOB
+        
+        task_id = task.get('taskId')
+        job_id = task.get('jobId')
+        runtime_image = task.get('runtimeImage', 'python:3.11-slim')
+        
+        if CURRENT_JOB:
+            self.log(f"⏳ Already executing task, skipping {task_id[:8]}")
+            return
+        
+        CURRENT_JOB = task_id
+        self.log(f"🚀 Starting task {task_id[:8]}...")
+        self.log(f"   Runtime: {runtime_image}")
+        
+        try:
+            # Pull Docker image if needed
+            self._ensure_docker_image(runtime_image)
+            
+            # Execute task in Docker
+            success, metrics = self._run_task_container(task)
+            
+            # Report task completion
+            self._report_task_completion(task_id, success, metrics)
+            
+        except Exception as e:
+            self.log(f"❌ Task execution failed: {e}", "ERROR")
+            self._report_task_completion(task_id, False, {"error": str(e)})
+        finally:
+            CURRENT_JOB = None
+    
+    def _run_task_container(self, task):
+        """Run task in Docker container"""
+        import time
+        import psutil
+        
+        start_time = time.time()
+        work_dir = tempfile.mkdtemp(prefix=f"runcor_task_{task['taskId'][:8]}_")
+        
+        try:
+            # Create input/output dirs
+            input_dir = os.path.join(work_dir, "input")
+            output_dir = os.path.join(work_dir, "output")
+            os.makedirs(input_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Download input files if specified
+            input_refs = task.get('inputRefs', [])
+            for ref in input_refs:
+                if ref.get('type') == 'url':
+                    self._download_input(ref['uri'], input_dir)
+            
+            # Write script file
+            script_content = task.get('command', '')
+            script_file = os.path.join(work_dir, "job.py")
+            with open(script_file, 'w') as f:
+                f.write(script_content)
+            
+            # Prepare environment variables
+            env_vars = task.get('environment', {})
+            env_list = [f"-e {k}={v}" for k, v in env_vars.items()]
+            
+            # Get resource limits
+            resources = task.get('resources', {})
+            cpu_limit = resources.get('cpuCores', 1)
+            memory_limit = f"{resources.get('memoryGb', 4)}g"
+            timeout = resources.get('timeoutSeconds', 1800)
+            
+            # Build docker run command
+            runtime_image = task.get('runtimeImage', 'python:3.11-slim')
+            cmd = [
+                "docker", "run",
+                "--rm",
+                "--cpus", str(cpu_limit),
+                "--memory", memory_limit,
+                "--memory-swap", memory_limit,
+                "--network", "none",
+                "-v", f"{script_file}:/app/job.py:ro",
+                "-v", f"{input_dir}:/workspace/input:ro",
+                "-v", f"{output_dir}:/workspace/output",
+            ] + env_list + [
+                runtime_image,
+                "python", "/app/job.py"
+            ]
+            
+            self.log(f"   Running container...")
+            
+            # Execute with timeout
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+            
+            # Calculate metrics
+            duration = time.time() - start_time
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            metrics = {
+                "durationSeconds": duration,
+                "cpuSeconds": duration * cpu_limit,  # Approximate
+                "memoryGbSeconds": (memory_info.rss / (1024**3)) * duration,
+                "exitCode": result.returncode,
+            }
+            
+            success = result.returncode == 0
+            
+            if success:
+                self.log(f"   ✅ Task completed in {duration:.1f}s")
+                # Upload outputs if any
+                self._upload_task_outputs(task['taskId'], output_dir)
+            else:
+                self.log(f"   ❌ Task failed with exit code {result.returncode}")
+                if result.stderr:
+                    self.log(f"   Error: {result.stderr[:200]}")
+            
+            return success, metrics
+            
+        finally:
+            # Cleanup
+            shutil.rmtree(work_dir, ignore_errors=True)
+    
+    def _report_task_completion(self, task_id, success, metrics):
+        """Report task completion to scheduler"""
+        try:
+            url = f"{API_URL}/api/nodes/tasks/complete"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {NODE_TOKEN}"
+            }
+            payload = {
+                "taskId": task_id,
+                "status": "completed" if success else "failed",
+                "metrics": metrics,
+                "outputRefs": metrics.get("outputRefs", [])
+            }
+            
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode(),
+                headers=headers,
+                method="POST"
+            )
+            
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode())
+                if result.get('success'):
+                    self.log(f"   📤 Task completion reported")
+                
+        except Exception as e:
+            self.log(f"   ⚠️ Failed to report completion: {e}", "WARN")
+    
+    def _download_input(self, url, output_dir):
+        """Download input file from URL"""
+        try:
+            filename = os.path.basename(url.split('?')[0]) or "input.zip"
+            filepath = os.path.join(output_dir, filename)
+            urllib.request.urlretrieve(url, filepath)
+            return filepath
+        except Exception as e:
+            self.log(f"   ⚠️ Failed to download input: {e}", "WARN")
+            return None
+    
+    def _upload_task_outputs(self, task_id, output_dir):
+        """Upload task output files"""
+        # For now, outputs are collected by the agent
+        # In future, could upload to S3/GridFS
+        pass
         
     def poll_and_execute_jobs(self):
         """Check for and execute pending jobs"""

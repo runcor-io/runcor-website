@@ -1,0 +1,65 @@
+{
+  "latest": {
+    "version": "v33",
+    "windows": "/downloads/runcor-agent-v33.exe",
+    "releaseDate": "2026-02-21",
+    "changelog": [
+      "Phase 2 scheduler integration with JWT node authentication",
+      "Heartbeat-based task receiving from scheduler",
+      "Task execution with metrics reporting",
+      "Docker image auto-pull for runtime images",
+      "psutil integration for resource monitoring"
+    ]
+  },
+  "versions": [
+    {
+      "version": "v33",
+      "status": "current",
+      "windows": "/downloads/runcor-agent-v33.exe",
+      "releaseDate": "2026-02-21"
+    },
+    {
+      "version": "v32",
+      "status": "stable",
+      "windows": "/downloads/runcor-agent-v32.exe",
+      "releaseDate": "2026-02-21"
+    },
+    {
+      "version": "v31",
+      "status": "stable",
+      "windows": "/downloads/runcor-agent-v31.exe",
+      "releaseDate": "2026-02-21"
+    },
+    {
+      "version": "v30",
+      "status": "stable",
+      "windows": "/downloads/runcor-agent-v30.exe",
+      "releaseDate": "2026-02-21"
+    },
+    {
+      "version": "v28",
+      "status": "legacy",
+      "releaseDate": "2026-02-20"
+    },
+    {
+      "version": "v27",
+      "status": "legacy",
+      "releaseDate": "2026-02-20"
+    },
+    {
+      "version": "v26",
+      "status": "legacy",
+      "releaseDate": "2026-02-20"
+    },
+    {
+      "version": "v25",
+      "status": "legacy",
+      "releaseDate": "2026-02-20"
+    },
+    {
+      "version": "v24",
+      "status": "legacy",
+      "releaseDate": "2026-02-20"
+    }
+  ]
+}
