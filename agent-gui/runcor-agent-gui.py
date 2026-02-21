@@ -36,6 +36,7 @@ API_URL = "https://www.runcor.io"
 DEVICE_ID = None
 USERNAME = None
 AUTH_CREDENTIALS = None
+NODE_TOKEN = None  # Phase 2: JWT token for node authentication
 CAPABILITIES = []
 POLL_INTERVAL = 10
 CURRENT_JOB = None
@@ -1046,39 +1047,58 @@ RAM:          {info.get('ram', 'N/A')} GB
             return None
             
     def register_device(self, info, username):
-        """Register device with API"""
-        gpu_info = None
-        if info.get('gpu'):
-            gpu_info = {
-                "model": info['gpu'],
-                "vramGB": info.get('gpu_vram', 0),
-                "cuda": True,
-                "openCL": True
-            }
-            
-        payload = {
-            "deviceId": info['device_id'],
-            "username": username,
-            "specs": {
+        """Register device as a node with API (Phase 2 scheduler)"""
+        global NODE_TOKEN
+        
+        # Build capabilities object per spec
+        capabilities = {
+            "cpu": {
+                "cores": info['cpu_cores'],
                 "architecture": info['architecture'],
-                "cpu": info['cpu'],
-                "cpuCores": info['cpu_cores'],
-                "ramGB": info['ram'],
-                "gpu": gpu_info,
-                "os": "windows",
-                "capabilities": info['capabilities'],
-                "maxJobRAM": info['max_job_ram']
+                "model": info.get('cpu', 'Unknown')
             },
-            "status": {
-                "cpuLoadPercent": 0,
-                "ramUsedPercent": 0,
-                "jobStatus": "idle",
-                "uptimeSeconds": 0
+            "memory": {
+                "total_gb": info['ram'],
+                "available_gb": info['ram']  # Simplified
+            },
+            "gpu": info.get('gpu') and [{
+                "model": info['gpu'],
+                "vram_gb": info.get('gpu_vram', 0),
+                "cuda_version": info.get('cuda_version'),
+                "rocm_version": info.get('rocm_version'),
+            }] or [],
+            "storage": {
+                "total_gb": 500,  # Would detect actual
+                "available_gb": 400
             }
         }
         
-        result = self.api_request("POST", "/api/devices", payload)
-        return result and result.get('success')
+        # Determine supported runtimes based on GPU
+        supported_runtimes = ["python:3.11", "python:3.10"]
+        if info.get('cuda_available'):
+            supported_runtimes.append(f"cuda:{info.get('cuda_version', '12.0')}")
+        if info.get('rocm_available'):
+            supported_runtimes.append(f"rocm:{info.get('rocm_version', '5.7')}")
+            
+        payload = {
+            "nodeId": info['device_id'],
+            "publicKey": None,  # Could generate key pair
+            "capabilities": capabilities,
+            "supportedRuntimes": supported_runtimes,
+            "region": "auto-detected",
+            "pricing": {
+                "cpuPerHour": 0.01,
+                "memoryGbPerHour": 0.005,
+                "gpuPerHour": 0.50 if info.get('gpu') else 0
+            }
+        }
+        
+        result = self.api_request("POST", "/api/nodes/register", payload)
+        if result and result.get('success'):
+            NODE_TOKEN = result.get('token')
+            self.log(f"Node registered. Token expires: {result.get('expiresAt', 'unknown')}")
+            return True
+        return False
         
     def start_workers(self):
         """Start background worker threads"""
@@ -1113,24 +1133,62 @@ RAM:          {info.get('ram', 'N/A')} GB
                 time.sleep(10)
                 
     def send_heartbeat(self):
-        """Update device heartbeat"""
-        if not DEVICE_ID:
+        """Send node heartbeat (Phase 2 scheduler)"""
+        global NODE_TOKEN
+        
+        if not DEVICE_ID or not NODE_TOKEN:
             return
             
         import psutil
         
+        # Get available resources
+        cpu_percent = psutil.cpu_percent()
+        mem = psutil.virtual_memory()
+        
         payload = {
-            "deviceId": DEVICE_ID,
-            "status": {
-                "cpuLoadPercent": psutil.cpu_percent(),
-                "ramUsedPercent": psutil.virtual_memory().percent,
-                "jobStatus": "busy" if CURRENT_JOB else "idle",
-                "uptimeSeconds": int(time.time() - self.start_time) if hasattr(self, 'start_time') else 0
+            "nodeId": DEVICE_ID,
+            "status": "healthy" if cpu_percent < 90 else "degraded",
+            "currentLoad": {
+                "cpuPercent": cpu_percent,
+                "memoryUsedPercent": mem.percent,
+                "gpuUtilization": [],  # Would get from nvidia-smi
+                "activeTasks": 1 if CURRENT_JOB else 0
             },
-            "currentJob": CURRENT_JOB
+            "availableResources": {
+                "cpuCores": max(1, psutil.cpu_count() - int(cpu_percent / 100 * psutil.cpu_count())),
+                "memoryGb": max(1, int((mem.total - mem.used) / (1024**3))),
+                "gpuSlots": 0 if CURRENT_JOB else 1  # Simplified
+            },
+            "activeTasks": 1 if CURRENT_JOB else 0
         }
         
-        self.api_request("POST", "/api/devices", payload)
+        # Use node token for authentication
+        try:
+            url = f"{API_URL}/api/nodes/heartbeat"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {NODE_TOKEN}"
+            }
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode(),
+                headers=headers,
+                method="POST"
+            )
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode())
+                
+                # Check for assigned tasks from scheduler
+                if result.get('tasks') and len(result['tasks']) > 0:
+                    self.log(f"Received {len(result['tasks'])} task(s) from scheduler")
+                    for task in result['tasks']:
+                        # Would execute task here
+                        pass
+                        
+        except Exception as e:
+            # Silent fail for heartbeat
+            pass
         
     def poll_and_execute_jobs(self):
         """Check for and execute pending jobs"""
