@@ -135,11 +135,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new job (called by contractor)
-    const { title, type, script, scriptUrl, postedBy, reward, requiredCapabilities, expectedOutputHash, inputFileUrl, deterministic } = body;
+    // Support both old format and new runtime-first format
+    const { 
+      title, 
+      type, 
+      runtimeImage, 
+      script, 
+      scriptUrl, 
+      postedBy, 
+      reward, 
+      requiredCapabilities, 
+      expectedOutputHash, 
+      inputFileUrl, 
+      deterministic,
+      // New fields
+      resources,
+      parallelMode,
+      inputPattern,
+      outputPattern,
+      dependencies,
+      environment,
+    } = body;
 
-    if (!title || !type || !postedBy) {
+    if (!title || !postedBy) {
       return NextResponse.json(
-        { error: "title, type, and postedBy are required" },
+        { error: "title and postedBy are required" },
         { status: 400 }
       );
     }
@@ -182,15 +202,39 @@ export async function POST(request: NextRequest) {
       undefined
     );
 
+    // Build capabilities from resources
+    const caps = requiredCapabilities || [];
+    if (resources?.gpuCount > 0 && !caps.includes("gpu_compute")) {
+      caps.push("gpu_compute");
+      caps.push("cuda");
+    }
+
     const job = {
       title,
-      type, // "ml_training", "data_processing", "compute"
+      // Support both old and new format
+      type: type || "compute",
+      runtimeImage: runtimeImage || type || "python:3.11-slim",
       status: "pending",
       postedBy: postedBy.toLowerCase(),
       reward: jobReward,
       script: script || null,
       scriptUrl: scriptUrl || null,
-      requiredCapabilities: requiredCapabilities || [],
+      dependencies: dependencies || null,
+      environment: environment || {},
+      requiredCapabilities: caps,
+      // New resource configuration
+      resources: resources || {
+        cpuCores: 1,
+        memoryGb: 4,
+        gpuCount: 0,
+        diskGb: 20,
+        timeoutSeconds: 1800,
+        maxRetries: 2,
+      },
+      // Parallel processing
+      parallelMode: parallelMode || "single",
+      inputPattern: inputPattern || null,
+      outputPattern: outputPattern || null,
       deviceId: null,
       claimedBy: null,
       createdAt: new Date().toISOString(),
@@ -203,7 +247,7 @@ export async function POST(request: NextRequest) {
       deterministic: deterministic || false,
       expectedOutputHash: expectedOutputHash || null,
       actualOutputHash: null,
-      verificationStatus: expectedOutputHash ? "pending" : null, // "pending", "verified", "failed", "manual_review"
+      verificationStatus: expectedOutputHash ? "pending" : null,
       inputFileUrl: inputFileUrl || null,
     };
 

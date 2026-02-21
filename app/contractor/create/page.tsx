@@ -13,293 +13,144 @@ import {
   CheckCircle,
   AlertCircle,
   Wallet,
-  Shield,
-  Hash,
   FileInput,
   X,
   Loader2,
-  FileText,
-  Image,
-  Activity,
-  Sprout,
-  Brain,
-  Film,
-  Server
+  Server,
+  HardDrive,
+  Clock,
+  Layers,
+  Settings,
+  Zap
 } from "lucide-react";
 
-// Job Type Definitions
-const JOB_TYPES = [
-  {
-    id: "python",
-    label: "Python Script",
-    description: "General Python computation",
-    icon: Code,
-    image: "python:3.11-slim",
-    estimatedSize: "~50MB",
-    capabilities: ["cpu_compute"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-RunCor Job - Python Script
-Your script runs in an isolated container with Python 3.11
-"""
-
-import json
-
-# Your code here
-result = {"status": "success", "message": "Job completed!"}
-
-# Save results
-with open("output.json", "w") as f:
-    json.dump(result, f, indent=2)
-
-print("Job finished successfully!")
-`,
-    exampleInput: "Optional: Upload a ZIP with data files"
-  },
-  {
-    id: "ocr",
-    label: "OCR / Document Processing",
-    description: "Extract text from images and PDFs",
-    icon: FileText,
-    image: "runcor/ocr:latest",
-    estimatedSize: "~500MB",
-    capabilities: ["cpu_compute"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-OCR Job - Extract text from documents
-Input: Images or PDFs in /workspace/input/
-Output: Extracted text in output.json
-"""
-
-import pytesseract
-from PIL import Image
-import json
-import os
-
-results = []
-input_dir = "/workspace/input"
-
-# Process all images
-for filename in os.listdir(input_dir):
-    if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp')):
-        image_path = os.path.join(input_dir, filename)
-        text = pytesseract.image_to_string(Image.open(image_path))
-        results.append({"file": filename, "text": text})
-
-# Save results
-with open("output.json", "w") as f:
-    json.dump({"documents": results}, f, indent=2)
-
-print(f"Processed {len(results)} documents")
-`,
-    exampleInput: "Upload ZIP with images/PDFs to process"
-  },
-  {
-    id: "ai",
-    label: "AI / Data Labeling",
-    description: "Image augmentation and dataset prep",
-    icon: Brain,
-    image: "runcor/ai:latest",
-    estimatedSize: "~2GB (includes PyTorch)",
-    capabilities: ["cpu_compute", "gpu_compute"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-AI Job - Data augmentation and preprocessing
-Input: Images in /workspace/input/
-Output: Augmented dataset in /workspace/output/
-"""
-
-import torch
-import torchvision.transforms as transforms
-from PIL import Image
-import os
-
-print(f"PyTorch version: {torch.__version__}")
-print(f"CUDA available: {torch.cuda.is_available()}")
-
-# Your augmentation code here
-input_dir = "/workspace/input"
-output_dir = "/workspace/output"
-os.makedirs(output_dir, exist_ok=True)
-
-# Example: Convert and resize images
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-])
-
-processed = 0
-for filename in os.listdir(input_dir):
-    if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-        img = Image.open(os.path.join(input_dir, filename))
-        tensor = transform(img)
-        # Save processed image
-        processed += 1
-
-print(f"Processed {processed} images")
-`,
-    exampleInput: "Upload ZIP with images for AI processing"
-  },
-  {
-    id: "blender",
-    label: "3D Rendering",
-    description: "Blender rendering with GPU support",
-    icon: Film,
-    image: "runcor/blender:latest",
-    estimatedSize: "~2GB (includes Blender + CUDA)",
-    capabilities: ["gpu_compute", "cuda", "rendering"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-Blender Rendering Job
-Input: .blend file in /workspace/input/
-Output: Rendered frames in /workspace/output/
-"""
-
-import bpy
-import os
-
-# Setup paths
-blend_file = None
-input_dir = "/workspace/input"
-output_dir = "/workspace/output"
-
-# Find .blend file
-for f in os.listdir(input_dir):
-    if f.endswith('.blend'):
-        blend_file = os.path.join(input_dir, f)
-        break
-
-if not blend_file:
-    print("No .blend file found in input!")
-    exit(1)
-
-# Load blend file
-bpy.ops.wm.open_mainfile(filepath=blend_file)
-
-# Configure render settings
-bpy.context.scene.render.filepath = os.path.join(output_dir, "frame_")
-bpy.context.scene.render.engine = 'CYCLES'
-bpy.context.scene.cycles.device = 'GPU'  # Use GPU if available
-
-# Render
-bpy.ops.render.render(write_file=True)
-print("Render complete!")
-`,
-    exampleInput: "Upload .blend file or ZIP with project"
-  },
-  {
-    id: "medical",
-    label: "Medical Imaging",
-    description: "DICOM processing and anonymization",
-    icon: Activity,
-    image: "runcor/medical:latest",
-    estimatedSize: "~1GB",
-    capabilities: ["cpu_compute"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-Medical Imaging Job - DICOM processing
-Input: DICOM files in /workspace/input/
-Output: Processed/anonymized images
-HIPAA-compliant local processing
-"""
-
-import pydicom
-from pydicom import dcmread
-import json
-import os
-
-input_dir = "/workspace/input"
-results = []
-
-# Process DICOM files
-for filename in os.listdir(input_dir):
-    if filename.lower().endswith(('.dcm', '.dicom')):
-        filepath = os.path.join(input_dir, filename)
-        try:
-            ds = dcmread(filepath)
-            
-            # Example: Anonymize patient info
-            ds.PatientName = "ANONYMOUS"
-            ds.PatientID = "000000"
-            
-            # Save anonymized version
-            output_path = os.path.join("/workspace/output", f"anon_{filename}")
-            ds.save_as(output_path)
-            
-            results.append({
-                "file": filename,
-                "modality": ds.Modality,
-                "shape": ds.pixel_array.shape
-            })
-        except Exception as e:
-            print(f"Error processing {filename}: {e}")
-
-# Save metadata
-with open("output.json", "w") as f:
-    json.dump({"processed": results}, f, indent=2)
-
-print(f"Processed {len(results)} DICOM files")
-`,
-    exampleInput: "Upload DICOM files (.dcm) in ZIP"
-  },
-  {
-    id: "satellite",
-    label: "Satellite / Drone Analysis",
-    description: "GeoTIFF and crop health analysis",
-    icon: Sprout,
-    image: "runcor/satellite:latest",
-    estimatedSize: "~800MB",
-    capabilities: ["cpu_compute"],
-    defaultScript: `#!/usr/bin/env python3
-"""
-Satellite/Drone Analysis Job
-Input: GeoTIFF or aerial images in /workspace/input/
-Output: NDVI analysis and crop health reports
-"""
-
-import rasterio
-from rasterio.plot import show
-import numpy as np
-import json
-import os
-
-input_dir = "/workspace/input"
-results = []
-
-# Process satellite/drone imagery
-for filename in os.listdir(input_dir):
-    if filename.lower().endswith(('.tif', '.tiff', '.geotiff')):
-        filepath = os.path.join(input_dir, filename)
-        
-        with rasterio.open(filepath) as src:
-            # Read bands (assuming RGB+NIR)
-            red = src.read(1).astype(float)
-            nir = src.read(4).astype(float) if src.count >= 4 else src.read(1)
-            
-            # Calculate NDVI
-            ndvi = np.where((nir + red) == 0, 0, (nir - red) / (nir + red))
-            
-            # Health statistics
-            mean_ndvi = float(np.mean(ndvi))
-            
-            results.append({
-                "file": filename,
-                "ndvi_mean": mean_ndvi,
-                "health": "good" if mean_ndvi > 0.4 else "poor" if mean_ndvi < 0.2 else "fair"
-            })
-
-# Save report
-with open("output.json", "w") as f:
-    json.dump({"crop_analysis": results}, f, indent=2)
-
-print(f"Analyzed {len(results)} images")
-`,
-    exampleInput: "Upload GeoTIFF or aerial images"
-  }
+// Runtime Environment Options
+const RUNTIMES = [
+  { id: "python:3.11-slim", label: "Python 3.11", size: "~50MB", icon: "🐍", category: "Language" },
+  { id: "python:3.10-slim", label: "Python 3.10", size: "~48MB", icon: "🐍", category: "Language" },
+  { id: "node:20-alpine", label: "Node.js 20", size: "~40MB", icon: "⬢", category: "Language" },
+  { id: "node:18-alpine", label: "Node.js 18", size: "~38MB", icon: "⬢", category: "Language" },
+  { id: "rust:latest", label: "Rust", size: "~25MB", icon: "🦀", category: "Language" },
+  { id: "golang:latest", label: "Go", size: "~20MB", icon: "🐹", category: "Language" },
+  { id: "nvidia/cuda:12.0-devel-ubuntu22.04", label: "CUDA 12.0", size: "~2GB", icon: "🚀", category: "GPU" },
+  { id: "nvidia/cuda:11.8-devel-ubuntu22.04", label: "CUDA 11.8", size: "~1.8GB", icon: "🚀", category: "GPU" },
+  { id: "rocm/dev-ubuntu-22.04:5.7", label: "ROCm 5.7", size: "~2GB", icon: "🔴", category: "GPU" },
 ];
 
+// Templates
+const TEMPLATES = [
+  { id: "ocr", label: "OCR / PDF Processing", runtime: "python:3.11-slim", description: "Extract text from documents" },
+  { id: "resize", label: "Image Resize Batch", runtime: "python:3.11-slim", description: "Batch resize images" },
+  { id: "pytorch", label: "PyTorch Training", runtime: "nvidia/cuda:12.0-devel-ubuntu22.04", description: "GPU ML training" },
+  { id: "blender", label: "Blender Rendering", runtime: "runcor/blender:latest", description: "3D rendering" },
+  { id: "data-pipeline", label: "Data Pipeline", runtime: "python:3.11-slim", description: "ETL processing" },
+];
+
+// Default scripts per runtime
+const DEFAULT_SCRIPTS: Record<string, string> = {
+  "python:3.11-slim": `#!/usr/bin/env python3
+import os
+import json
+
+# Input available at /workspace/input/
+# Output write to /workspace/output/
+
+input_file = os.environ.get('INPUT_FILE', '')
+print(f"Processing: {input_file}")
+
+# Your code here
+result = {"processed": True, "input": input_file}
+
+# Save results
+with open('/workspace/output/result.json', 'w') as f:
+    json.dump(result, f, indent=2)
+
+print("Job completed!")
+`,
+  "node:20-alpine": `#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+
+// Input available at /workspace/input/
+// Output write to /workspace/output/
+
+const inputFile = process.env.INPUT_FILE || '';
+console.log('Processing:', inputFile);
+
+// Your code here
+const result = { processed: true, input: inputFile };
+
+// Save results
+fs.writeFileSync('/workspace/output/result.json', JSON.stringify(result, null, 2));
+
+console.log('Job completed!');
+`,
+  "rust:latest": `use std::env;
+use std::fs;
+
+fn main() {
+    let input_file = env::var("INPUT_FILE").unwrap_or_default();
+    println!("Processing: {}", input_file);
+    
+    // Your code here
+    let result = format!("Processed: {}", input_file);
+    
+    // Save output
+    fs::write("/workspace/output/result.txt", result).expect("Write failed");
+    
+    println!("Job completed!");
+}
+`,
+  "golang:latest": `package main
+
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    inputFile := os.Getenv("INPUT_FILE")
+    fmt.Printf("Processing: %s\\n", inputFile)
+    
+    // Your code here
+    result := fmt.Sprintf("Processed: %s", inputFile)
+    
+    // Save output
+    os.WriteFile("/workspace/output/result.txt", []byte(result), 0644)
+    
+    fmt.Println("Job completed!")
+}
+`,
+  "nvidia/cuda:12.0-devel-ubuntu22.04": `#!/usr/bin/env python3
+import torch
+import os
+
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA version: {torch.version.cuda}")
+
+if torch.cuda.is_available():
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+# Your GPU code here
+# ...
+
+print("Job completed!")
+`,
+  "rocm/dev-ubuntu-22.04:5.7": `#!/usr/bin/env python3
+import torch
+import os
+
+print(f"ROCm available: {torch.cuda.is_available()}")
+
+# Your ROCm code here
+# ...
+
+print("Job completed!")
+`,
+};
+
 // File Upload Component
-function FileUpload({ onUploadComplete, uploadedUrl, label }: { onUploadComplete: (url: string) => void, uploadedUrl: string, label: string }) {
+function FileUpload({ onUploadComplete, uploadedUrl }: { onUploadComplete: (url: string) => void, uploadedUrl: string }) {
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
@@ -365,21 +216,12 @@ function FileUpload({ onUploadComplete, uploadedUrl, label }: { onUploadComplete
       <label className="flex flex-col items-center justify-center w-full h-24 rounded-lg border-2 border-dashed border-zinc-700 hover:border-amber-500/50 hover:bg-zinc-900/50 transition-all cursor-pointer">
         <div className="flex flex-col items-center justify-center pt-4 pb-4">
           {uploading ? (
-            <>
-              <Loader2 className="w-6 h-6 text-amber-500 animate-spin mb-1" />
-              <p className="text-xs text-zinc-400">Uploading...</p>
-            </>
+            <><Loader2 className="w-6 h-6 text-amber-500 animate-spin mb-1" /><p className="text-xs text-zinc-400">Uploading...</p></>
           ) : (
-            <>
-              <Upload className="w-6 h-6 text-zinc-500 mb-1" />
-              <p className="text-xs text-zinc-400">
-                <span className="text-amber-500">Click to upload</span> or drag and drop
-              </p>
-              <p className="text-xs text-zinc-600 mt-1">Max 50MB</p>
-            </>
+            <><Upload className="w-6 h-6 text-zinc-500 mb-1" /><p className="text-xs text-zinc-400"><span className="text-amber-500">Click to upload</span></p></>
           )}
         </div>
-        <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} accept=".zip,.json,.csv,.txt,.jpg,.jpeg,.png,.webp,.dcm,.tif,.tiff,.blend" />
+        <input type="file" className="hidden" onChange={handleFileChange} disabled={uploading} />
       </label>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
     </div>
@@ -391,10 +233,32 @@ export default function CreateJobPage() {
   const { data: session } = useSession();
   const username = (session?.user as any)?.username || "unknown";
   
-  const [selectedType, setSelectedType] = useState(JOB_TYPES[0]);
+  // Step 1: Runtime Selection
+  const [selectedRuntime, setSelectedRuntime] = useState(RUNTIMES[0].id);
+  const [useTemplate, setUseTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  
+  // Step 2: Resource Configuration
   const [title, setTitle] = useState("");
-  const [script, setScript] = useState(JOB_TYPES[0].defaultScript);
+  const [cpuCores, setCpuCores] = useState(2);
+  const [memoryGb, setMemoryGb] = useState(4);
+  const [gpuEnabled, setGpuEnabled] = useState(false);
+  const [diskGb, setDiskGb] = useState(20);
+  const [timeoutMinutes, setTimeoutMinutes] = useState(30);
+  const [maxRetries, setMaxRetries] = useState(2);
+  
+  // Step 3: Input & Script
+  const [inputSource, setInputSource] = useState("upload"); // upload, url, s3
+  const [inputUrl, setInputUrl] = useState("");
   const [inputFileUrl, setInputFileUrl] = useState("");
+  const [parallelMode, setParallelMode] = useState(false);
+  const [inputPattern, setInputPattern] = useState("/workspace/input/*");
+  const [outputPattern, setOutputPattern] = useState("/workspace/output/{name}.json");
+  const [script, setScript] = useState(DEFAULT_SCRIPTS["python:3.11-slim"]);
+  const [dependencies, setDependencies] = useState("");
+  const [envVars, setEnvVars] = useState<{key: string, value: string, secret: boolean}[]>([]);
+  
+  // Step 4: Pricing
   const [reward, setReward] = useState("10");
   const [balance, setBalance] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -415,12 +279,16 @@ export default function CreateJobPage() {
     fetchBalance();
   }, []);
 
-  // Update script when job type changes
-  const handleTypeChange = (typeId: string) => {
-    const type = JOB_TYPES.find(t => t.id === typeId);
-    if (type) {
-      setSelectedType(type);
-      setScript(type.defaultScript);
+  // Update script when runtime changes
+  useEffect(() => {
+    setScript(DEFAULT_SCRIPTS[selectedRuntime] || DEFAULT_SCRIPTS["python:3.11-slim"]);
+  }, [selectedRuntime]);
+
+  const handleTemplateSelect = (templateId: string) => {
+    const template = TEMPLATES.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplate(templateId);
+      setSelectedRuntime(template.runtime);
     }
   };
 
@@ -435,13 +303,24 @@ export default function CreateJobPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          type: selectedType.id,
+          runtimeImage: selectedRuntime,
           script,
+          dependencies: dependencies || undefined,
+          environment: envVars.reduce((acc, {key, value}) => ({...acc, [key]: value}), {}),
+          resources: {
+            cpuCores,
+            memoryGb,
+            gpuCount: gpuEnabled ? 1 : 0,
+            diskGb,
+            timeoutSeconds: timeoutMinutes * 60,
+            maxRetries,
+          },
+          parallelMode: parallelMode ? "map" : "single",
+          inputPattern: parallelMode ? inputPattern : undefined,
+          outputPattern: parallelMode ? outputPattern : undefined,
+          inputFileUrl: inputFileUrl || null,
           postedBy: username,
           reward: parseFloat(reward) || 0,
-          requiredCapabilities: selectedType.capabilities,
-          requiredImages: [selectedType.image],
-          inputFileUrl: inputFileUrl || null,
         })
       });
 
@@ -450,11 +329,9 @@ export default function CreateJobPage() {
       if (data.success) {
         setResult({
           success: true,
-          message: "Job created successfully!",
+          message: `Job created! ${parallelMode ? 'Will split into parallel tasks.' : ''}`,
           jobId: data.jobId
         });
-        setTitle("");
-        setInputFileUrl("");
       } else {
         setResult({
           success: false,
@@ -470,6 +347,8 @@ export default function CreateJobPage() {
       setIsSubmitting(false);
     }
   };
+
+  const currentRuntime = RUNTIMES.find(r => r.id === selectedRuntime);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -501,139 +380,340 @@ export default function CreateJobPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Job Type Selection */}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* STEP 1: Runtime Selection */}
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Server className="w-5 h-5 text-amber-500" />
-            Select Job Type
+            Step 1: Select Runtime Environment
           </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {JOB_TYPES.map((type) => {
-              const Icon = type.icon;
-              const isSelected = selectedType.id === type.id;
-              return (
+
+          {/* Toggle: Base vs Template */}
+          <div className="flex gap-4 mb-6">
+            <button
+              type="button"
+              onClick={() => setUseTemplate(false)}
+              className={`flex-1 p-3 rounded-lg border text-left transition-all ${!useTemplate ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-900 border-zinc-800'}`}
+            >
+              <span className="text-sm font-medium text-white">Base Image</span>
+              <p className="text-xs text-zinc-500">Start from official Docker image</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseTemplate(true)}
+              className={`flex-1 p-3 rounded-lg border text-left transition-all ${useTemplate ? 'bg-amber-500/10 border-amber-500/50' : 'bg-zinc-900 border-zinc-800'}`}
+            >
+              <span className="text-sm font-medium text-white">Use Template</span>
+              <p className="text-xs text-zinc-500">Start from pre-configured setup</p>
+            </button>
+          </div>
+
+          {!useTemplate ? (
+            // Base Runtime Selection
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {RUNTIMES.map((runtime) => (
                 <button
-                  key={type.id}
+                  key={runtime.id}
                   type="button"
-                  onClick={() => handleTypeChange(type.id)}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    isSelected
+                  onClick={() => setSelectedRuntime(runtime.id)}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    selectedRuntime === runtime.id
                       ? "bg-amber-500/10 border-amber-500/50"
                       : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${isSelected ? "bg-amber-500/20" : "bg-zinc-800"}`}>
-                      <Icon className={`w-5 h-5 ${isSelected ? "text-amber-400" : "text-zinc-400"}`} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-medium ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                          {type.label}
-                        </span>
-                        {isSelected && <CheckCircle className="w-4 h-4 text-amber-400" />}
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-1">{type.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">{type.image}</span>
-                        <span className="text-xs text-zinc-600">{type.estimatedSize}</span>
-                      </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{runtime.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium text-white">{runtime.label}</p>
+                      <p className="text-xs text-zinc-500">{runtime.size}</p>
                     </div>
                   </div>
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            // Template Selection
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => handleTemplateSelect(template.id)}
+                  className={`p-4 rounded-lg border text-left transition-all ${
+                    selectedTemplate === template.id
+                      ? "bg-amber-500/10 border-amber-500/50"
+                      : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                  }`}
+                >
+                  <p className="font-medium text-white">{template.label}</p>
+                  <p className="text-xs text-zinc-500">{template.description}</p>
+                  <p className="text-xs text-amber-400 mt-1">{template.runtime}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Job Details */}
+        {/* STEP 2: Resource Requirements */}
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Code className="w-5 h-5 text-amber-500" />
-            Job Details
+            <Cpu className="w-5 h-5 text-amber-500" />
+            Step 2: Resource Requirements
           </h2>
-          
+
           <div className="space-y-4">
+            {/* Title */}
             <div>
               <label className="block text-sm font-medium text-zinc-400 mb-2">Job Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={`e.g., ${selectedType.label} Task`}
+                placeholder="e.g., Process dataset v1"
                 className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50"
                 required
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* CPU */}
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">Reward (RUN tokens)</label>
-                <div className="relative">
-                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-                  <input
-                    type="number"
-                    value={reward}
-                    onChange={(e) => setReward(e.target.value)}
-                    min="1"
-                    step="1"
-                    className="w-full pl-10 pr-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-zinc-500 mt-2">Balance: {balance.toLocaleString()} RUN</p>
-                {parseInt(reward) > balance && <p className="text-xs text-red-400">Insufficient balance</p>}
+                <label className="block text-sm font-medium text-zinc-400 mb-2">CPU Cores</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={32}
+                  value={cpuCores}
+                  onChange={(e) => setCpuCores(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                />
               </div>
 
+              {/* Memory */}
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-2">Required Capabilities</label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedType.capabilities.map(cap => (
-                    <span key={cap} className="px-2 py-1 rounded bg-amber-500/20 text-amber-400 text-xs">
-                      {cap}
-                    </span>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">Memory (GB)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={128}
+                  value={memoryGb}
+                  onChange={(e) => setMemoryGb(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              {/* Disk */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">Disk (GB)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={diskGb}
+                  onChange={(e) => setDiskGb(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                />
+              </div>
+
+              {/* Timeout */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">Timeout (min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={timeoutMinutes}
+                  onChange={(e) => setTimeoutMinutes(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                />
               </div>
             </div>
 
-            {/* Input File */}
-            <div className="border border-zinc-800 rounded-lg p-4 bg-zinc-900/50">
-              <div className="flex items-center gap-3 mb-3">
-                <FileInput className="w-5 h-5 text-amber-400" />
-                <div>
-                  <h3 className="text-sm font-medium text-white">Input Files</h3>
-                  <p className="text-xs text-zinc-500">{selectedType.exampleInput}</p>
-                </div>
+            {/* GPU Toggle */}
+            <div className="flex items-center gap-4 p-4 bg-zinc-900 rounded-lg">
+              <Zap className="w-5 h-5 text-yellow-400" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">GPU Required</p>
+                <p className="text-xs text-zinc-500">Enable if job needs CUDA/ROCm</p>
               </div>
-              <FileUpload onUploadComplete={setInputFileUrl} uploadedUrl={inputFileUrl} label={selectedType.exampleInput} />
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={gpuEnabled}
+                  onChange={(e) => setGpuEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
+            </div>
+
+            {/* Retries */}
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-zinc-400">Max Retries:</label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                value={maxRetries}
+                onChange={(e) => setMaxRetries(parseInt(e.target.value) || 0)}
+                className="w-20 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white"
+              />
             </div>
           </div>
         </div>
 
-        {/* Script Editor */}
+        {/* STEP 3: Input Data */}
         <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Code className="w-5 h-5 text-amber-500" />
-              Script
-            </h2>
-            <span className="text-xs text-zinc-500">Runs in {selectedType.image}</span>
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <FileInput className="w-5 h-5 text-amber-500" />
+            Step 3: Input Data
+          </h2>
+
+          {/* Input Source */}
+          <div className="flex gap-2 mb-4">
+            {['upload', 'url'].map((source) => (
+              <button
+                key={source}
+                type="button"
+                onClick={() => setInputSource(source)}
+                className={`px-4 py-2 rounded-lg text-sm transition-all ${
+                  inputSource === source
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
+                    : "bg-zinc-900 text-zinc-400 border border-zinc-800"
+                }`}
+              >
+                {source === 'upload' ? 'Upload Files' : 'URL'}
+              </button>
+            ))}
           </div>
-          
+
+          {inputSource === 'upload' ? (
+            <FileUpload onUploadComplete={setInputFileUrl} uploadedUrl={inputFileUrl} />
+          ) : (
+            <input
+              type="url"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              placeholder="https://example.com/data.zip"
+              className="w-full px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50"
+            />
+          )}
+
+          {/* Parallel Mode */}
+          <div className="mt-4 flex items-center gap-4 p-4 bg-zinc-900 rounded-lg">
+            <Layers className="w-5 h-5 text-blue-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-white">Parallel Processing (Map)</p>
+              <p className="text-xs text-zinc-500">Split job into tasks per input file</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={parallelMode}
+                onChange={(e) => setParallelMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+            </label>
+          </div>
+
+          {parallelMode && (
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Input Pattern</label>
+                <input
+                  type="text"
+                  value={inputPattern}
+                  onChange={(e) => setInputPattern(e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-zinc-900 border border-zinc-800 text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Output Pattern</label>
+                <input
+                  type="text"
+                  value={outputPattern}
+                  onChange={(e) => setOutputPattern(e.target.value)}
+                  className="w-full px-3 py-2 rounded bg-zinc-900 border border-zinc-800 text-white text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* STEP 4: Script */}
+        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Code className="w-5 h-5 text-amber-500" />
+            Step 4: Script
+          </h2>
+
+          <div className="mb-4 p-3 bg-zinc-900 rounded-lg">
+            <p className="text-xs text-zinc-400">
+              Running in: <code className="text-amber-400">{currentRuntime?.label}</code>
+            </p>
+          </div>
+
           <textarea
             value={script}
             onChange={(e) => setScript(e.target.value)}
-            rows={16}
+            rows={12}
             className="w-full px-4 py-3 rounded-lg bg-black border border-zinc-800 text-zinc-300 font-mono text-sm focus:outline-none focus:border-amber-500/50 resize-y"
             required
           />
-          
-          <p className="mt-2 text-xs text-zinc-500">
-            Output files saved to <code className="text-amber-500">/workspace/output/</code> will be returned to you.
-          </p>
+
+          {/* Dependencies */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-zinc-400 mb-2">Dependencies (requirements.txt, package.json, etc.)</label>
+            <textarea
+              value={dependencies}
+              onChange={(e) => setDependencies(e.target.value)}
+              rows={3}
+              placeholder="pandas==2.0.0
+numpy==1.24.0"
+              className="w-full px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-white text-sm font-mono"
+            />
+          </div>
+        </div>
+
+        {/* STEP 5: Pricing & Deploy */}
+        <div className="p-6 rounded-xl bg-zinc-950 border border-zinc-800">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Coins className="w-5 h-5 text-amber-500" />
+            Step 5: Pricing
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">Reward (RUN tokens)</label>
+              <div className="relative">
+                <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                <input
+                  type="number"
+                  value={reward}
+                  onChange={(e) => setReward(e.target.value)}
+                  min="1"
+                  step="1"
+                  className="w-full pl-10 pr-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-amber-500/50"
+                  required
+                />
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">Balance: {balance.toLocaleString()} RUN</p>
+              {parseInt(reward) > balance && <p className="text-xs text-red-400">Insufficient balance</p>}
+            </div>
+
+            {/* Summary */}
+            <div className="p-4 bg-zinc-900 rounded-lg">
+              <p className="text-sm font-medium text-white mb-2">Job Summary</p>
+              <ul className="text-xs text-zinc-400 space-y-1">
+                <li>Runtime: {currentRuntime?.label}</li>
+                <li>Resources: {cpuCores} CPU, {memoryGb}GB RAM{gpuEnabled ? ', GPU' : ''}</li>
+                <li>Timeout: {timeoutMinutes} min</li>
+                <li>Parallel: {parallelMode ? 'Yes' : 'No'}</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Submit */}
@@ -648,7 +728,7 @@ export default function CreateJobPage() {
             className="flex items-center gap-2 px-8 py-3 rounded-lg bg-amber-500 text-black font-semibold hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? (
-              <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /> Creating...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> Creating...</>
             ) : (
               <><Play className="w-5 h-5" /> Deploy Job</>
             )}
