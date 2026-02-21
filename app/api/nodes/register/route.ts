@@ -37,17 +37,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get authenticated user from token
+    // Get authenticated user from token OR request body (for agent compatibility)
     const token = await getToken({ 
       req: request as any,
       secret: process.env.NEXTAUTH_SECRET 
     });
 
-    if (!token?.username) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    let username: string;
+    if (token?.username) {
+      username = (token.username as string).toLowerCase();
+    } else if (body.username) {
+      // Allow agent to pass username in body for initial registration
+      username = (body.username as string).toLowerCase();
+    } else {
+      return NextResponse.json({ error: "Unauthorized - no token or username provided" }, { status: 401 });
     }
-
-    const username = (token.username as string).toLowerCase();
     const db = await getDb();
     const nodes = db.collection("nodes");
 

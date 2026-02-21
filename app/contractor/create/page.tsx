@@ -327,6 +327,17 @@ export default function CreateJobPage() {
       const data = await response.json();
 
       if (data.success) {
+        // Trigger scheduler to create tasks and assign to nodes
+        try {
+          await fetch("/api/scheduler", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId: data.jobId })
+          });
+        } catch (e) {
+          console.error("Failed to trigger scheduler:", e);
+        }
+        
         setResult({
           success: true,
           message: `Job created! ${parallelMode ? 'Will split into parallel tasks.' : ''}`,

@@ -1089,6 +1089,7 @@ RAM:          {info.get('ram', 'N/A')} GB
             
         payload = {
             "nodeId": info['device_id'],
+            "username": username,  # For agent authentication
             "publicKey": None,  # Could generate key pair
             "capabilities": capabilities,
             "supportedRuntimes": supported_runtimes,
