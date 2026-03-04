@@ -102,14 +102,19 @@ export default function DeviceControl() {
         status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
         lastSeen: node.lastHeartbeatAt || node.registeredAt,
         specs: {
+          architecture: node.capabilities?.cpu?.architecture || 'amd64',
           cpu: node.capabilities?.cpu?.model || 'Unknown',
-          cpuCores: node.capabilities?.cpu?.cores || '?',
-          memory: node.capabilities?.memory?.total_gb || '?',
+          cpuCores: node.capabilities?.cpu?.cores || 0,
+          cpuFrequencyMHz: 0, // Not tracked for nodes
+          ramGB: node.capabilities?.memory?.total_gb || 0,
           gpu: node.capabilities?.gpu?.[0] ? {
             model: node.capabilities.gpu[0].model,
             vramGB: node.capabilities.gpu[0].vram_gb || 0
           } : null,
+          os: 'Windows', // Default
+          osVersion: '11',
           capabilities: node.supportedRuntimes || [],
+          maxJobRAM: `${(node.capabilities?.memory?.total_gb || 4) - 2}GB`,
         },
         isNode: true,
         currentJob: node.activeTasks > 0 ? 'Processing tasks' : null,
