@@ -63,10 +63,29 @@ export default function FleetCommand() {
     if (!username) return;
     
     try {
-      // Fetch user's devices (backend uses JWT token)
+      // Fetch user's devices (legacy)
       const devicesRes = await fetch(`/api/devices`);
       const devicesData = devicesRes.ok ? await devicesRes.json() : [];
-      setDevices(devicesData);
+      
+      // Fetch user's nodes (Phase 2 scheduler)
+      const nodesRes = await fetch(`/api/nodes`);
+      const nodesData = nodesRes.ok ? await nodesRes.json() : [];
+      
+      // Merge devices and nodes (convert nodes to device format)
+      const nodesAsDevices = nodesData.map((node: any) => ({
+        _id: node._id,
+        deviceId: node.nodeId,
+        name: node.name || `Node ${node.nodeId?.slice(0, 8)}`,
+        status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
+        lastSeen: node.lastHeartbeatAt || node.registeredAt,
+        cpu: node.capabilities?.cpu?.model || 'Unknown',
+        ram: `${node.capabilities?.memory?.total_gb || '?'} GB`,
+        gpu: node.capabilities?.gpu?.[0]?.model || null,
+        capabilities: node.supportedRuntimes || [],
+        isNode: true, // Flag to identify Phase 2 nodes
+      }));
+      
+      setDevices([...devicesData, ...nodesAsDevices]);
       
       // Fetch user's jobs (backend uses JWT token for authentication)
       const jobsRes = await fetch(`/api/jobs`);

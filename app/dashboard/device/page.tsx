@@ -85,12 +85,36 @@ export default function DeviceControl() {
       
       console.log("[Device] Fetching devices (backend uses JWT token)");
       
+      // Fetch legacy devices
       const res = await fetch("/api/devices");
-      if (!res.ok) throw new Error("Failed to fetch devices");
+      const devicesData = res.ok ? await res.json() : [];
       
-      const data = await res.json();
-      console.log("[Device] Found devices:", data.length);
-      setDevices(data);
+      // Fetch Phase 2 nodes
+      const nodesRes = await fetch("/api/nodes");
+      const nodesData = nodesRes.ok ? await nodesRes.json() : [];
+      
+      // Convert nodes to device format
+      const nodesAsDevices = nodesData.map((node: any) => ({
+        _id: node._id,
+        deviceId: node.nodeId,
+        name: node.name || `Node ${node.nodeId?.slice(0, 8)}`,
+        username: currentUsername,
+        status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
+        lastSeen: node.lastHeartbeatAt || node.registeredAt,
+        cpu: node.capabilities?.cpu?.model || 'Unknown',
+        cores: node.capabilities?.cpu?.cores || '?',
+        ram: node.capabilities?.memory?.total_gb || '?',
+        gpu: node.capabilities?.gpu?.[0]?.model || null,
+        capabilities: node.supportedRuntimes || [],
+        isNode: true,
+        currentJob: node.activeTasks > 0 ? 'Processing tasks' : null,
+        uptimeSeconds: node.lastHeartbeatAt ? 
+          Math.floor((Date.now() - new Date(node.registeredAt).getTime()) / 1000) : 0,
+      }));
+      
+      const allDevices = [...devicesData, ...nodesAsDevices];
+      console.log("[Device] Found devices:", devicesData.length, "nodes:", nodesData.length);
+      setDevices(allDevices);
       
       // Select first device if none selected
       if (data.length > 0 && !selectedDevice) {

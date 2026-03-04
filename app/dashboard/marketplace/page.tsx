@@ -62,11 +62,29 @@ export default function Marketplace() {
       console.log("[Marketplace] Available jobs:", jobsData.length);
       setJobs(jobsData);
       
-      // Fetch user's devices (backend uses JWT token)
+      // Fetch user's devices and nodes (backend uses JWT token)
       const devicesRes = await fetch("/api/devices");
       const devicesData = devicesRes.ok ? await devicesRes.json() : [];
-      console.log("[Marketplace] User devices:", devicesData.length, devicesData);
-      setDevices(devicesData);
+      
+      const nodesRes = await fetch("/api/nodes");
+      const nodesData = nodesRes.ok ? await nodesRes.json() : [];
+      
+      const nodesAsDevices = nodesData.map((node: any) => ({
+        _id: node._id,
+        deviceId: node.nodeId,
+        name: node.name || `Node ${node.nodeId?.slice(0, 8)}`,
+        status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
+        specs: {
+          capabilities: node.supportedRuntimes || [],
+          cpu: node.capabilities?.cpu?.model,
+          memory: node.capabilities?.memory?.total_gb,
+          gpu: node.capabilities?.gpu?.[0]?.model,
+        }
+      }));
+      
+      const allDevices = [...devicesData, ...nodesAsDevices];
+      console.log("[Marketplace] User devices:", devicesData.length, "nodes:", nodesData.length);
+      setDevices(allDevices);
     } catch (error) {
       console.error("Failed to fetch marketplace:", error);
     } finally {
