@@ -117,8 +117,8 @@ export default function DeviceControl() {
       setDevices(allDevices);
       
       // Select first device if none selected
-      if (data.length > 0 && !selectedDevice) {
-        setSelectedDevice(data[0]);
+      if (allDevices.length > 0 && !selectedDevice) {
+        setSelectedDevice(allDevices[0]);
       }
       
       setError("");
