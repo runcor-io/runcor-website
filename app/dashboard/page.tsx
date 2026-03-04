@@ -78,10 +78,16 @@ export default function FleetCommand() {
         name: node.name || `Node ${node.nodeId?.slice(0, 8)}`,
         status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
         lastSeen: node.lastHeartbeatAt || node.registeredAt,
-        cpu: node.capabilities?.cpu?.model || 'Unknown',
-        ram: `${node.capabilities?.memory?.total_gb || '?'} GB`,
-        gpu: node.capabilities?.gpu?.[0]?.model || null,
-        capabilities: node.supportedRuntimes || [],
+        specs: {
+          cpu: node.capabilities?.cpu?.model || 'Unknown',
+          cpuCores: node.capabilities?.cpu?.cores || 0,
+          ramGB: node.capabilities?.memory?.total_gb || 0,
+          gpu: node.capabilities?.gpu?.[0] ? {
+            model: node.capabilities.gpu[0].model,
+            vramGB: node.capabilities.gpu[0].vram_gb || 0
+          } : undefined,
+          capabilities: node.supportedRuntimes || [],
+        },
         isNode: true, // Flag to identify Phase 2 nodes
       }));
       

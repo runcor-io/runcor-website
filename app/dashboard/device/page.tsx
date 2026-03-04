@@ -101,11 +101,16 @@ export default function DeviceControl() {
         username: currentUsername,
         status: node.status === 'healthy' || node.status === 'online' ? 'online' : 'offline',
         lastSeen: node.lastHeartbeatAt || node.registeredAt,
-        cpu: node.capabilities?.cpu?.model || 'Unknown',
-        cores: node.capabilities?.cpu?.cores || '?',
-        ram: node.capabilities?.memory?.total_gb || '?',
-        gpu: node.capabilities?.gpu?.[0]?.model || null,
-        capabilities: node.supportedRuntimes || [],
+        specs: {
+          cpu: node.capabilities?.cpu?.model || 'Unknown',
+          cpuCores: node.capabilities?.cpu?.cores || '?',
+          memory: node.capabilities?.memory?.total_gb || '?',
+          gpu: node.capabilities?.gpu?.[0] ? {
+            model: node.capabilities.gpu[0].model,
+            vramGB: node.capabilities.gpu[0].vram_gb || 0
+          } : null,
+          capabilities: node.supportedRuntimes || [],
+        },
         isNode: true,
         currentJob: node.activeTasks > 0 ? 'Processing tasks' : null,
         uptimeSeconds: node.lastHeartbeatAt ? 
